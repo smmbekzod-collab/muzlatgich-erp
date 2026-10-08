@@ -1,0 +1,6 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ title }} | MUZLATGICH ERP{% endblock %}
+{% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}">MUZLATGICH ERP</a></div>{% endblock %}
+{% block extrastyle %}{{ block.super }}<style>
+:root{--primary:#264b62;--secondary:#102f43;--accent:#b9ecd3;--header-bg:#102f43;--header-color:#ecfff4;--link-fg:#24634b;--button-bg:#24634b;--button-hover-bg:#174934}#header{padding:20px 30px}#site-name{font-weight:700;letter-spacing:2px}input,select{min-height:32px}fieldset.module{border-radius:8px;overflow:hidden}#content{padding:24px} .agro-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px}.agro-card{border:1px solid var(--hairline-color);background:var(--body-bg);border-radius:12px;padding:20px}.agro-card h2{margin-top:0}.agro-card strong{font-size:26px}.agro-actions{display:flex;flex-wrap:wrap;gap:12px;margin:18px 0}.agro-actions a{background:var(--button-bg);color:#fff;padding:12px 16px;border-radius:7px}.agro-label{color:var(--body-quiet-color)}@media(max-width:600px){#content{padding:16px}#header{padding:16px}.agro-cards{grid-template-columns:1fr}.agro-actions a{flex:1;text-align:center}}
+</style>{% endblock %}

@@ -1,0 +1,102 @@
+Creating test database for alias 'default' ('file:memorydb_default?mode=memory&cache=shared')...
+Found 62 test(s).
+Operations to perform:
+  Synchronize unmigrated apps: messages, staticfiles
+  Apply all migrations: admin, auth, contenttypes, core, sessions, warehouse
+Synchronizing apps without migrations:
+  Creating tables...
+    Running deferred SQL...
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  Applying auth.0001_initial... OK
+  Applying admin.0001_initial... OK
+  Applying admin.0002_logentry_remove_auto_add... OK
+  Applying admin.0003_logentry_add_action_flag_choices... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying auth.0002_alter_permission_name_max_length... OK
+  Applying auth.0003_alter_user_email_max_length... OK
+  Applying auth.0004_alter_user_username_opts... OK
+  Applying auth.0005_alter_user_last_login_null... OK
+  Applying auth.0006_require_contenttypes_0002... OK
+  Applying auth.0007_alter_validators_add_error_messages... OK
+  Applying auth.0008_alter_user_username_max_length... OK
+  Applying auth.0009_alter_user_last_name_max_length... OK
+  Applying auth.0010_alter_group_name_max_length... OK
+  Applying auth.0011_update_proxy_permissions... OK
+  Applying auth.0012_alter_user_first_name_max_length... OK
+  Applying core.0001_initial... OK
+  Applying core.0002_membership_can_manage_expenses... OK
+  Applying sessions.0001_initial... OK
+  Applying warehouse.0001_initial... OK
+  Applying warehouse.0002_loginthrottle_operation_reversal_of_and_more...test_admin_cannot_add_camera (core.tests.AccessTests.test_admin_cannot_add_camera) ... /tmp/agro-admin-deps/django/core/handlers/base.py:61: UserWarning: No directory at: /workspace/scratch/1e9f43ac3cb2/agro_admin/staticfiles/
+  mw_instance = middleware(adapted_handler)
+ok
+test_admin_cannot_edit_camera (core.tests.AccessTests.test_admin_cannot_edit_camera) ... ok
+test_admin_cannot_edit_users (core.tests.AccessTests.test_admin_cannot_edit_users) ... ok
+test_admin_cannot_grant_self_permission (core.tests.AccessTests.test_admin_cannot_grant_self_permission) ... ok
+test_all_cameras_includes_new_camera (core.tests.AccessTests.test_all_cameras_includes_new_camera) ... ok
+test_camera_cannot_move_tenant (core.tests.AccessTests.test_camera_cannot_move_tenant) ... ok
+test_cross_tenant_denied (core.tests.AccessTests.test_cross_tenant_denied) ... ok
+test_debt_requires_dispatch (core.tests.AccessTests.test_debt_requires_dispatch) ... ok
+test_direct_other_tenant_object_hidden (core.tests.AccessTests.test_direct_other_tenant_object_hidden) ... ok
+test_disabled_camera_denied (core.tests.AccessTests.test_disabled_camera_denied) ... ok
+test_disabled_org_denied (core.tests.AccessTests.test_disabled_org_denied) ... ok
+test_disabled_user_denied (core.tests.AccessTests.test_disabled_user_denied) ... ok
+test_duplicate_camera_number (core.tests.AccessTests.test_duplicate_camera_number) ... ok
+test_grant_cannot_select_other_org_camera (core.tests.AccessTests.test_grant_cannot_select_other_org_camera) ... ok
+test_granted_action_works (core.tests.AccessTests.test_granted_action_works) ... ok
+test_list_does_not_leak_other_tenant (core.tests.AccessTests.test_list_does_not_leak_other_tenant) ... ok
+test_quota_cannot_be_lowered_below_inventory (core.tests.AccessTests.test_quota_cannot_be_lowered_below_inventory) ... ok
+test_quota_enforced (core.tests.AccessTests.test_quota_enforced) ... ok
+test_revocation_immediate (core.tests.AccessTests.test_revocation_immediate) ... ok
+test_same_number_other_org_allowed (core.tests.AccessTests.test_same_number_other_org_allowed) ... ok
+test_super_dashboard_and_audited_create (core.tests.AccessTests.test_super_dashboard_and_audited_create) ... ok
+test_tenant_camera_scope (core.tests.AccessTests.test_tenant_camera_scope) ... ok
+test_unassigned_camera_denied (core.tests.AccessTests.test_unassigned_camera_denied) ... ok
+test_ungranted_action_denied (core.tests.AccessTests.test_ungranted_action_denied) ... ok
+test_unknown_operation_denied (core.tests.AccessTests.test_unknown_operation_denied) ... ok
+test_wrong_org_even_super_denied (core.tests.AccessTests.test_wrong_org_even_super_denied) ... ok
+test_advance_used (warehouse.tests.WorkflowTests.test_advance_used) ... ok
+test_all_pages_render (warehouse.tests.WorkflowTests.test_all_pages_render) ... ok
+test_anniversary_month_leap_boundaries (warehouse.tests.WorkflowTests.test_anniversary_month_leap_boundaries) ... ok
+test_backdated_after_stock_movement_rejected (warehouse.tests.WorkflowTests.test_backdated_after_stock_movement_rejected) ... ok
+test_capacity_limit (warehouse.tests.WorkflowTests.test_capacity_limit) ... ok
+test_cash_permission_required (warehouse.tests.WorkflowTests.test_cash_permission_required) ... ok
+test_confirm_flow_http (warehouse.tests.WorkflowTests.test_confirm_flow_http) ... ok
+test_cross_org_transfer_denied (warehouse.tests.WorkflowTests.test_cross_org_transfer_denied) ... ok
+test_cross_tenant_qr_does_not_disclose (warehouse.tests.WorkflowTests.test_cross_tenant_qr_does_not_disclose) ... ok
+test_csrf_is_required (warehouse.tests.WorkflowTests.test_csrf_is_required) ... ok
+test_csv_exports (warehouse.tests.WorkflowTests.test_csv_exports) ... ok
+test_debt_permission_required (warehouse.tests.WorkflowTests.test_debt_permission_required) ... ok
+test_debt_permission_works (warehouse.tests.WorkflowTests.test_debt_permission_works) ... ok
+test_duplicate_submit_once (warehouse.tests.WorkflowTests.test_duplicate_submit_once) ... ok
+test_finance_permission (warehouse.tests.WorkflowTests.test_finance_permission) ... ok
+test_full_close_does_not_double_bill (warehouse.tests.WorkflowTests.test_full_close_does_not_double_bill) ... ok
+test_future_date_rejected (warehouse.tests.WorkflowTests.test_future_date_rejected) ... ok
+test_gross_tariff_500 (warehouse.tests.WorkflowTests.test_gross_tariff_500) ... ok
+test_last_boxes_need_all_weight (warehouse.tests.WorkflowTests.test_last_boxes_need_all_weight) ... ok
+test_login_throttle (warehouse.tests.WorkflowTests.test_login_throttle) ... ok
+test_loss_without_box_loss (warehouse.tests.WorkflowTests.test_loss_without_box_loss) ... ok
+test_no_duplicate_receive (warehouse.tests.WorkflowTests.test_no_duplicate_receive) ... ok
+test_occupied_camera_cannot_deactivate (warehouse.tests.WorkflowTests.test_occupied_camera_cannot_deactivate) ... ok
+test_over_dispatch_rejected (warehouse.tests.WorkflowTests.test_over_dispatch_rejected) ... ok
+test_partial_dispatch_and_receipt (warehouse.tests.WorkflowTests.test_partial_dispatch_and_receipt) ... ok
+test_qr_requires_login_and_is_png (warehouse.tests.WorkflowTests.test_qr_requires_login_and_is_png) ... ok
+test_reversal_rejects_staff_and_old_documents (warehouse.tests.WorkflowTests.test_reversal_rejects_staff_and_old_documents) ... ok
+test_reversal_restores_stock_and_money_once (warehouse.tests.WorkflowTests.test_reversal_restores_stock_and_money_once) ... ok
+test_same_day_zero_and_inclusive_day (warehouse.tests.WorkflowTests.test_same_day_zero_and_inclusive_day) ... ok
+test_storage_partial_does_not_reduce_fixed_fee (warehouse.tests.WorkflowTests.test_storage_partial_does_not_reduce_fixed_fee) ... ok
+test_storage_prorata_and_idempotent_billing (warehouse.tests.WorkflowTests.test_storage_prorata_and_idempotent_billing) ... ok
+test_storage_reversal_restores_accrual (warehouse.tests.WorkflowTests.test_storage_reversal_restores_accrual) ... ok
+test_tare_and_net_overdraw_rejected (warehouse.tests.WorkflowTests.test_tare_and_net_overdraw_rejected) ... ok
+test_tariff_changes_do_not_rewrite_lot (warehouse.tests.WorkflowTests.test_tariff_changes_do_not_rewrite_lot) ... ok
+test_transfer_preserves_qr_and_billing (warehouse.tests.WorkflowTests.test_transfer_preserves_qr_and_billing) ... ok
+test_transfer_reversal (warehouse.tests.WorkflowTests.test_transfer_reversal) ... ok
+
+----------------------------------------------------------------------
+Ran 62 tests in 21.612s
+
+OK
+Destroying test database for alias 'default' ('file:memorydb_default?mode=memory&cache=shared')...
+ OK
+System check identified no issues (0 silenced).
