@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET
 from core import access
 from .models import Lot,Operation,Customer,Tariff,Expense
+from .customer_export import customer_csv
 from .forms import IntakeForm,OperationForm,CustomerForm,TariffForm,ExpenseForm,RequestForm
 from .services import receive,act,quote,totals,pending,ZERO,date_check,reverse_last
 
