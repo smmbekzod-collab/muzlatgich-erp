@@ -16,6 +16,7 @@ from core import access
 from .models import Lot,Operation,Customer,Tariff,Expense
 from .customer_export import customer_csv
 from .customer_excel import customer_excel, allowed_customers
+from .general_excel import general_excel
 from .forms import IntakeForm,OperationForm,CustomerForm,TariffForm,ExpenseForm,RequestForm
 from .services import receive,act,quote,totals,pending,ZERO,date_check,reverse_last
 
@@ -176,6 +177,8 @@ def report(request):
     for lot in visible_lots(request.user).filter(camera__in=visible).order_by('customer__name'):
         t=totals(lot);p=pending(lot)
         debts.append({'lot':lot,**t,'pending':p,'estimated_debt':max(ZERO,t['charged']+p-t['paid'])})
+    if request.GET.get('export')=='xlsx':
+        return general_excel(rows, debts, start, end)
     if request.GET.get('export')=='csv':
         response=HttpResponse(content_type='text/csv; charset=utf-8-sig');response['Content-Disposition']='attachment; filename="muzlatgich-erp-hisobot.csv"';response.write('\ufeff')
         writer=csv.writer(response);writer.writerow(['Tashkilot','Kamera','Sovutish hisob','Saqlama hisob','Tushum','Xarajat','Pul oqimi','Davr boshi','Davr oxiri'])
