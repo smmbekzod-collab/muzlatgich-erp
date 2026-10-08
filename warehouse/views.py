@@ -15,6 +15,7 @@ from django.views.decorators.http import require_GET
 from core import access
 from .models import Lot,Operation,Customer,Tariff,Expense
 from .customer_export import customer_csv
+from .customer_excel import customer_excel, allowed_customers
 from .forms import IntakeForm,OperationForm,CustomerForm,TariffForm,ExpenseForm,RequestForm
 from .services import receive,act,quote,totals,pending,ZERO,date_check,reverse_last
 
@@ -184,7 +185,7 @@ def report(request):
         writer.writerow([]);writer.writerow(['Partiya','Mijoz','Tasdiqlangan hisob','To‘lov','Qarz','Avans','Hali yozilmagan xizmat','Joriy taxminiy qarz'])
         for row in debts:writer.writerow([row['lot'].short_id,safe(row['lot'].customer.name),row['charged'],row['paid'],row['debt'],row['advance'],row['pending'],row['estimated_debt']])
         return response
-    return render(request,'warehouse/report.html',context(request,rows=rows,debts=debts,start=start,end=end))
+    return render(request,'warehouse/report.html',context(request,rows=rows,debts=debts,start=start,end=end,report_customers=allowed_customers(request.user)))
 
 def manifest(request):return JsonResponse({'name':'Muzlatgich ERP','short_name':'Muzlatgich ERP','start_url':'/app/','display':'standalone','background_color':'#f4f7fa','theme_color':'#113d36','icons':[{'src':'/static/warehouse/icon-192.png','sizes':'192x192','type':'image/png'},{'src':'/static/warehouse/icon-512.png','sizes':'512x512','type':'image/png'}]})
 def service_worker(request):
