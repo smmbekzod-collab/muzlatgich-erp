@@ -5,5 +5,3 @@ urlpatterns=[path('',views.dashboard,name='dashboard'),path('receive/',views.int
 urlpatterns.append(path("receipt/<uuid:pk>/reverse/",views.reverse_operation,name="reverse"))
 
 urlpatterns.append(path("report/customers.csv",views.customer_csv,name="customer_csv"))
-
-urlpatterns.append(path("report/customer.xlsx",views.customer_excel,name="customer_excel"))
