@@ -70,6 +70,11 @@ class Lot(models.Model):
     @property
     def net(self):return self.gross-self.tare
     @property
+    def current_stay_days(self):
+        from django.utils import timezone
+        through=self.closed_on or timezone.localdate()
+        return max(1,(through-self.received_on).days+1)
+    @property
     def short_id(self):return str(self.id)[:8].upper()
     @property
     def rate_description(self):
