@@ -1,4 +1,16 @@
 {% load static %}<!doctype html><html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#113d36"><title>{% block title %}Muzlatgich ERP{% endblock %}</title><link rel="manifest" href="/manifest.json"><link rel="icon" href="{% static 'warehouse/icon-192.png' %}"><link rel="stylesheet" href="{% static 'warehouse/app.css' %}"></head><body>
 <header class="top"><a class="brand" href="{% url 'dashboard' %}">MUZLATGICH<span> ERP</span><small>OMBOR BOSHQARUVI</small></a><div class="account"><span>{{ request.user.username }}</span><form action="{% url 'admin:logout' %}" method="post">{% csrf_token %}<button class="quiet">Chiqish</button></form></div></header>
-<div class="shell"><nav class="side" aria-label="Asosiy menyu"><a href="{% url 'dashboard' %}">Omborlar va yuklar</a><a href="{% url 'scanner' %}">QR skaner</a><a href="{% url 'intake' %}">Yuk qabul qilish</a><a href="{% url 'customers' %}">Mijozlar</a><a href="{% url 'tariffs' %}">Tariflar</a><a href="{% url 'report' %}">Hisob va qarzlar</a><a href="{% url 'expenses' %}">Xarajatlar</a><a href="{% url 'admin:index' %}">{% if request.user.is_superuser %}Super admin{% else %}Mening huquqlarim{% endif %}</a></nav>
+<div class="shell"><nav class="side" aria-label="Asosiy menyu">
+  <div class="nav-group-label">OMBOR</div>
+  <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="nav-current" aria-current="page"{% endif %}>▦ &nbsp; Omborlar va yuklar</a>
+  <a href="{% url 'scanner' %}" {% if request.resolver_match.url_name == 'scanner' %}class="nav-current" aria-current="page"{% endif %}>▧ &nbsp; QR skaner</a>
+  <a href="{% url 'intake' %}" {% if request.resolver_match.url_name == 'intake' %}class="nav-current" aria-current="page"{% endif %}>＋ &nbsp; Yuk qabul qilish</a>
+  <a href="{% url 'customers' %}" {% if request.resolver_match.url_name == 'customers' %}class="nav-current" aria-current="page"{% endif %}>♙ &nbsp; Mijozlar</a>
+  <div class="nav-group-label">HISOB-KITOB</div>
+  <a href="{% url 'tariffs' %}" {% if request.resolver_match.url_name == 'tariffs' %}class="nav-current" aria-current="page"{% endif %}>▤ &nbsp; Tariflar</a>
+  <a href="{% url 'report' %}" {% if request.resolver_match.url_name == 'report' %}class="nav-current" aria-current="page"{% endif %}>▥ &nbsp; Hisob va qarzlar</a>
+  <a href="{% url 'expenses' %}" {% if request.resolver_match.url_name == 'expenses' %}class="nav-current" aria-current="page"{% endif %}>◈ &nbsp; Xarajatlar</a>
+  <div class="nav-group-label">SOZLAMALAR</div>
+  <a href="{% url 'admin:index' %}">{% if request.user.is_superuser %}⚙ &nbsp; Super Admin{% else %}⚙ &nbsp; Mening huquqlarim{% endif %}</a>
+</nav>
 <main>{% for message in messages %}<div role="status" class="notice">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}</main></div><footer>MUZLATGICH ERP · {{ today|date:'d.m.Y' }} · Hisoblar so‘mda</footer><script src="{% static 'warehouse/app.js' %}" defer></script>{% block scripts %}{% endblock %}</body></html>

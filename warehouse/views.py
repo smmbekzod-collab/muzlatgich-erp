@@ -20,7 +20,7 @@ from .general_excel import general_excel
 from .forms import IntakeForm,OperationForm,CustomerForm,TariffForm,ExpenseForm,RequestForm
 from .services import receive,act,quote,totals,pending,ZERO,date_check,reverse_last
 
-def visible_lots(user):return Lot.objects.filter(camera__in=access.cameras(user),organization__is_active=True).select_related('camera','organization','customer')
+def visible_lots(user):return Lot.objects.filter(camera__in=access.cameras(user),organization__is_active=True).select_related('camera','camera__facility','organization','customer')
 def allowed(user,lot,operation):
     try:access.authorize(user,lot.organization_id,lot.camera_id,operation);return True
     except PermissionDenied:return False
@@ -30,18 +30,64 @@ def form_error(form,error):
 
 @login_required
 def dashboard(request):
-    lots=visible_lots(request.user)
-    query=request.GET.get('q','').strip()
-    if query:lots=lots.filter(Q(product__icontains=query)|Q(customer__name__icontains=query)|Q(variety__icontains=query))
-    selected=request.GET.get('camera','')
-    if selected.isdigit():lots=lots.filter(camera_id=selected)
-    if request.GET.get('status','open')=='open':lots=lots.filter(closed_on__isnull=True)
-    summary=[]
-    for cam in access.cameras(request.user).select_related('organization'):
-        counts=visible_lots(request.user).filter(camera=cam,closed_on__isnull=True).aggregate(boxes=Sum('boxes'),gross=Sum('gross'),tare=Sum('tare'))
-        gross=counts['gross'] or ZERO;tare=counts['tare'] or ZERO
-        summary.append({'camera':cam,'boxes':counts['boxes'] or 0,'gross':gross,'net':gross-tare})
-    return render(request,'warehouse/dashboard.html',context(request,lots=lots.order_by('-created_at')[:300],summary=summary,query=query,cameras=access.cameras(request.user),selected=selected,status=request.GET.get('status','open')))
+    """Branch-aware overview; all rows are scoped by access.cameras on the server."""
+    allowed_cameras = list(access.cameras(request.user).select_related('organization', 'facility')
+                           .order_by('organization__name', 'facility__name', 'number'))
+    facility_map = {cam.facility_id: cam.facility for cam in allowed_cameras if cam.facility_id}
+    facility_options = sorted(facility_map.values(), key=lambda f: (f.organization.name, f.name))
+    selected_facility = request.GET.get('facility', '')
+    if selected_facility and selected_facility.isdecimal():
+        if int(selected_facility) in facility_map:
+            allowed_cameras = [cam for cam in allowed_cameras if cam.facility_id == int(selected_facility)]
+        else:
+            allowed_cameras = []  # Unknown or unauthorized filters reveal nothing.
+    elif selected_facility:
+        allowed_cameras = []
+    selected = request.GET.get('camera', '')
+    if selected and selected.isdecimal():
+        allowed_cameras = [cam for cam in allowed_cameras if cam.pk == int(selected)]
+    elif selected:
+        allowed_cameras = []
+
+    camera_ids = [cam.pk for cam in allowed_cameras]
+    from django.db.models import Count
+    active_totals = Lot.objects.filter(camera_id__in=camera_ids, closed_on__isnull=True).values('camera_id').annotate(
+        boxes_total=Sum('boxes'), gross_total=Sum('gross'), tare_total=Sum('tare'), lot_count=Count('pk'))
+    by_camera = {row['camera_id']: row for row in active_totals}
+    summary = []
+    total_boxes = 0
+    total_net = ZERO
+    total_gross = ZERO
+    for cam in allowed_cameras:
+        values = by_camera.get(cam.pk, {})
+        boxes = values.get('boxes_total') or 0
+        gross = values.get('gross_total') or ZERO
+        tare = values.get('tare_total') or ZERO
+        net = gross - tare
+        total_boxes += boxes
+        total_net += net
+        total_gross += gross
+        capacity = cam.capacity_kg
+        fullness = min(100, int(gross * 100 / capacity)) if capacity and capacity > 0 else None
+        summary.append({'camera':cam, 'boxes':boxes, 'gross':gross, 'net':net,
+                        'lot_count':values.get('lot_count') or 0, 'fill_percent':fullness,
+                        'capacity':capacity, 'free_kg':max(ZERO, capacity - gross) if capacity is not None else None})
+
+    lots = visible_lots(request.user).filter(camera_id__in=camera_ids)
+    query = request.GET.get('q', '').strip()[:120]
+    if query:
+        lots = lots.filter(Q(product__icontains=query) | Q(customer__name__icontains=query) | Q(variety__icontains=query))
+    status = request.GET.get('status', 'open')
+    if status != 'all':
+        status = 'open'
+        lots = lots.filter(closed_on__isnull=True)
+    return render(request, 'warehouse/dashboard.html', context(request,
+        lots=lots.order_by('-created_at')[:300], summary=summary, query=query,
+        camera_options=access.cameras(request.user).select_related('organization','facility'),
+        facility_options=facility_options, selected_facility=selected_facility,
+        selected=selected, status=status, total_boxes=total_boxes,
+        total_net=total_net, total_gross=total_gross, camera_count=len(summary),
+        active_lot_count=sum(x['lot_count'] for x in summary)))
 
 @login_required
 def intake(request):

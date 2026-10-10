@@ -1,4 +1,85 @@
-{% extends 'warehouse/base.html' %}{% block content %}<div class="row between"><div><div class="eyebrow">Joriy qoldiq</div><h1>Omborlar va yuklar</h1><p class="muted">Har bir kamera va partiya bo‘yicha aniq hisob.</p></div><a class="button" href="{% url 'intake' %}">+ Yuk qabul qilish</a></div>
-<div class="grid">{% for row in summary %}<section class="card"><div class="label">{{ row.camera.organization.name }}</div><h2>{{ row.camera.number }}-raqamli muzlatgich</h2><div class="big">{{ row.boxes }} <small>yashik</small></div><p>{{ row.net|floatformat:3 }} kg sof</p><a href="?camera={{ row.camera.pk }}">Yuklarni ko‘rish →</a></section>{% empty %}<div class="card"><h2>Kamera biriktirilmagan</h2><p>Super admin tashkilot va kameralarni yaratsin, so‘ng Sizga huquq bersin.</p><a href="{% url 'admin:index' %}">Boshqaruv paneli</a></div>{% endfor %}</div>
-<form class="filters"><input name="q" value="{{ query }}" aria-label="Yuk yoki mijoz qidirish" placeholder="Mijoz, mahsulot yoki nav…"><select name="camera" aria-label="Kamera"><option value="">Barcha kameralar</option>{% for camera in cameras %}<option value="{{ camera.pk }}" {% if selected == camera.pk|stringformat:'s' %}selected{% endif %}>{{ camera }}</option>{% endfor %}</select><select name="status" aria-label="Holat"><option value="open" {% if status == 'open' %}selected{% endif %}>Ochiq yuklar</option><option value="all" {% if status == 'all' %}selected{% endif %}>Barcha yuklar</option></select><button>Qidirish</button><a class="button secondary" href="{% url 'scanner' %}">QR skaner</a></form>
-<div class="tablebox"><table><thead><tr><th>Partiya</th><th>Mijoz / mahsulot</th><th>Kamera</th><th>Kirim</th><th class="num">Yashik</th><th class="num">Sof kg</th><th>Holat</th></tr></thead><tbody>{% for lot in lots %}<tr><td><a href="{% url 'lot' lot.pk %}">{{ lot.short_id }}</a></td><td><a href="{% url 'lot' lot.pk %}">{{ lot.customer.name }}</a><div class="muted">{{ lot.product }} · {{ lot.variety }}</div></td><td>{{ lot.camera.number }}</td><td>{{ lot.received_on|date:'d.m.Y' }}</td><td class="num">{{ lot.boxes }}</td><td class="num">{{ lot.net|floatformat:3 }}</td><td>{% if lot.closed_on %}<span class="tag closed">Yopilgan</span>{% else %}<span class="tag">Omborda</span>{% endif %}</td></tr>{% empty %}<tr><td colspan="7">Bu filtr bo‘yicha yuk yo‘q.</td></tr>{% endfor %}</tbody></table></div><p class="help">Ro‘yxatda eng so‘nggi 300 ta mos partiya ko‘rsatiladi. Kerakli yukni qidiruv yoki QR orqali oching.</p>{% endblock %}
+{% extends 'warehouse/base.html' %}
+{% block content %}
+<section class="overview-head" aria-labelledby="warehouse-title">
+  <div>
+    <div class="eyebrow">OMBOR NAZORATI / JORIY HOLAT</div>
+    <h1 id="warehouse-title">Yuklar va kameralar</h1>
+    <p class="muted">Filial, kamera va partiyalar bo‘yicha tezkor nazorat.</p>
+  </div>
+  <div class="overview-actions">
+    <a class="button secondary" href="{% url 'scanner' %}">▦ &nbsp; QR skaner</a>
+    <a class="button" href="{% url 'intake' %}">+ &nbsp; Yuk qabul qilish</a>
+  </div>
+</section>
+<section class="kpi-grid" aria-label="Ombor ko‘rsatkichlari">
+  <div class="kpi-card"><div class="kpi-label">Faol kameralar ko‘rinishi</div><div class="kpi-value">{{ camera_count }}</div><div class="kpi-foot">Sizga ruxsat berilgan kameralar</div></div>
+  <div class="kpi-card"><div class="kpi-label">Joriy partiyalar</div><div class="kpi-value">{{ active_lot_count }}</div><div class="kpi-foot">Ombordagi ochiq yuklar</div></div>
+  <div class="kpi-card"><div class="kpi-label">Jami yashik</div><div class="kpi-value">{{ total_boxes }}</div><div class="kpi-foot">Barcha tanlangan kameralar</div></div>
+  <div class="kpi-card kpi-accent"><div class="kpi-label">Sof mahsulot</div><div class="kpi-value">{{ total_net|floatformat:1 }} <small>kg</small></div><div class="kpi-foot">Tara chegirilgan qoldiq</div></div>
+</section>
+
+<section aria-labelledby="camera-title">
+  <div class="section-heading">
+    <div><h2 id="camera-title">Kameralar bandligi</h2><p class="muted">Brutto vazn va ruxsat etilgan sig‘imga nisbatan.</p></div>
+    {% if request.user.is_superuser %}<a class="text-link" href="{% url 'admin:core_facility_changelist' %}">Filiallarni boshqarish →</a>{% endif %}
+  </div>
+  <div class="camera-grid">
+    {% for row in summary %}
+    <article class="camera-card">
+      <div class="camera-card-top">
+        <div><span class="camera-kicker">{{ row.camera.organization.name }}</span>
+          <h3>{{ row.camera.number }}-kamera{% if row.camera.name %} · {{ row.camera.name }}{% endif %}</h3>
+          <p class="camera-location">{{ row.camera.facility.name|default:'Asosiy ombor' }}</p>
+        </div>
+        <span class="status-dot {% if not row.camera.is_active %}status-paused{% elif row.fill_percent >= 100 %}status-full{% endif %}" aria-label="{% if not row.camera.is_active %}Faol emas{% else %}Kamera holati{% endif %}"></span>
+      </div>
+      <div class="camera-stat-row">
+        <div><span class="camera-stat-value">{{ row.net|floatformat:1 }}</span><span class="camera-stat-unit"> kg sof</span></div>
+        <span class="camera-stat-count">{{ row.boxes }} yashik</span>
+      </div>
+      {% if row.fill_percent != None %}
+      <div class="capacity-head"><span>Bandlik</span><strong>{{ row.fill_percent }}%</strong></div>
+      <div class="capacity-track" role="progressbar" aria-label="{{ row.camera.number }}-kamera bandligi" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ row.fill_percent }}"><span style="width:{{ row.fill_percent }}%"></span></div>
+      <div class="camera-meta"><span>Sig‘im: {{ row.capacity|floatformat:0 }} kg</span><span>Bo‘sh: {{ row.free_kg|floatformat:0 }} kg</span></div>
+      {% else %}
+      <p class="capacity-unknown">Sig‘im kiritilmagan — bandlik foizi hisoblanmaydi.</p>
+      {% endif %}
+      <a class="camera-open" href="?facility={{ row.camera.facility_id }}&camera={{ row.camera.pk }}&status=open#lots-title">Yuklarni ko‘rish <span aria-hidden="true">→</span></a>
+    </article>
+    {% empty %}
+    <div class="empty-state">
+      <div class="empty-symbol" aria-hidden="true">▣</div>
+      <h3>Kameralar topilmadi</h3>
+      <p>Filtrni tozalang yoki Super Admin’dan tegishli filial va kamera huquqlarini tekshirishni so‘rang.</p>
+      <a class="button secondary" href="{% url 'dashboard' %}">Filtrni tozalash</a>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="lots-section" aria-labelledby="lots-title">
+  <div class="section-heading"><div><h2 id="lots-title">Partiyalar ro‘yxati</h2><p class="muted">Yuk egasi, mahsulot, nav yoki kamera bo‘yicha toping.</p></div></div>
+  <form class="filter-panel" method="get" aria-label="Partiyalar filtri">
+    <div class="filter-item filter-search"><label for="q">Qidirish</label><input id="q" type="search" name="q" placeholder="Mijoz yoki meva nomi..." value="{{ query }}"></div>
+    <div class="filter-item"><label for="facility">Filial</label><select id="facility" name="facility"><option value="">Barcha filiallar</option>{% for f in facility_options %}<option value="{{ f.pk }}" {% if selected_facility == f.pk|stringformat:'s' %}selected{% endif %}>{{ f.organization.name }} — {{ f.name }}</option>{% endfor %}</select></div>
+    <div class="filter-item"><label for="camera">Kamera</label><select id="camera" name="camera"><option value="">Barcha kameralar</option>{% for cam in camera_options %}<option value="{{ cam.pk }}" {% if selected == cam.pk|stringformat:'s' %}selected{% endif %}>{{ cam.facility.name|default:cam.organization.name }} / {{ cam.number }}</option>{% endfor %}</select></div>
+    <div class="filter-item"><label for="status">Holat</label><select id="status" name="status"><option value="open" {% if status == 'open' %}selected{% endif %}>Ombordagi yuklar</option><option value="all" {% if status == 'all' %}selected{% endif %}>Barcha yuklar</option></select></div>
+    <div class="filter-buttons"><button type="submit">Ko‘rsatish</button><a class="button secondary" href="{% url 'dashboard' %}">Tozalash</a></div>
+  </form>
+  <div class="tablebox responsive-table">
+    <table><thead><tr><th>Partiya</th><th>Mijoz / mahsulot</th><th>Filial / kamera</th><th>Kirim</th><th class="num">Yashik</th><th class="num">Sof kg</th><th>Holat</th></tr></thead>
+      <tbody>{% for lot in lots %}
+      <tr><td data-label="Partiya"><a class="lot-code" href="{% url 'lot' lot.pk %}">{{ lot.short_id }}</a></td>
+        <td data-label="Mijoz"><a class="lot-owner" href="{% url 'lot' lot.pk %}">{{ lot.customer.name }}</a><div class="muted">{{ lot.product }}{% if lot.variety %} · {{ lot.variety }}{% endif %}</div></td>
+        <td data-label="Filial / kamera">{{ lot.camera.facility.name|default:'Asosiy ombor' }}<div class="muted">{{ lot.camera.number }}-kamera</div></td>
+        <td data-label="Kirim">{{ lot.received_on|date:'d.m.Y' }}</td>
+        <td data-label="Yashik" class="num">{{ lot.boxes }}</td><td data-label="Sof kg" class="num">{{ lot.net|floatformat:1 }}</td>
+        <td data-label="Holat">{% if lot.closed_on %}<span class="tag closed">Yopilgan</span>{% else %}<span class="tag">Omborda</span>{% endif %}</td>
+      </tr>{% empty %}
+      <tr><td colspan="7"><div class="table-empty">Tanlangan filtr bo‘yicha yuk topilmadi. <a href="{% url 'dashboard' %}">Filtrlarni tozalash</a></div></td></tr>
+      {% endfor %}</tbody>
+    </table>
+  </div>
+  <p class="help">Ro‘yxatda eng so‘nggi 300 ta mos partiya ko‘rsatiladi. Kamera kartalaridagi qoldiq qidiruv matniga emas, filial/kamera filtriga asoslanadi.</p>
+</section>
+{% endblock %}
