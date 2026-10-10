@@ -1,0 +1,53 @@
+{% extends 'warehouse/base.html' %}
+{% block title %}Telegram sozlamasi · Muzlatgich ERP{% endblock %}
+{% block content %}
+<section class="overview-head">
+<div><div class="eyebrow">SUPER ADMIN / TELEGRAM</div><h1>Telegram ogohlantirishlari</h1>
+<p class="muted">Har bir tashkilot uchun alohida chat. Xabarlar yangi qaydlar va jadval bo‘yicha tekshirilgan hodisalarga bog‘liq.</p></div>
+<a class="button secondary" href="{% url 'director_monitor' %}">Rahbar paneli →</a>
+</section>
+<div class="telegram-status-grid">
+ <article><span>Bot tokeni Railway’da</span>
+   {% if bot_ready %}<strong class="telegram-ready">Sozlangan</strong>{% else %}<strong class="telegram-wait">Hali yo‘q</strong>{% endif %}
+   <small>Token matni hech qachon sahifada ko‘rsatilmaydi.</small></article>
+ <article><span>Faol manzillar</span><strong>{{ configured_count }}</strong><small>Tashkilot bo‘yicha bir chat</small></article>
+ <article><span>Telegram navbati/xatolar</span><strong>{{ pending_count }}</strong><small>Navbat va qayta urinishlar</small></article>
+</div>
+<div class="telegram-layout">
+ <section class="card telegram-setup">
+ <h2>Tashkilot chatini sozlash</h2>
+ <p class="muted">Botni Telegram guruhiga qo‘shing. Guruh chat ID qiymatini kiriting va kerak bo‘lsa ogohlantirishlarni yoqing.</p>
+ <form method="post" class="setup-form">{% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for field in form.visible_fields %}
+  <div class="field {% if field.name == 'enabled' %}telegram-toggle{% endif %}">
+   <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}
+   {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+  </div>
+  {% endfor %}
+  <button type="submit">Chat sozlamasini saqlash →</button>
+ </form>
+ </section>
+ <aside class="telegram-guide">
+ <h2>Ulanish tartibi</h2>
+ <ol>
+  <li>Telegram’da o‘zingizning botingizni yarating va guruhga qo‘shing.</li>
+  <li>Bot tokenini faqat Railway’ning xususiy <code>TELEGRAM_BOT_TOKEN</code> o‘zgaruvchisiga kiriting.</li>
+  <li>Guruhning raqamli chat ID qiymatini ushbu formaga yozing.</li>
+  <li>Ogohlantirishlarni yoqing va sinov o‘lchovi bilan tekshiring.</li>
+ </ol>
+ <div class="env-disclaimer">Muhim: bot tokenini ChatGPT yoki GitHub’ga yubormang. Haqiqiy xabar yuborish uchun Railway’da davriy monitoring topshirig‘i ishga tushirilishi kerak. Hozirgi sahifadagi manzilning saqlanishi Telegram yetkazib berilganini tasdiqlamaydi.</div>
+ </aside>
+</div>
+<section class="setup-directory">
+<h2>Tashkilotlarning Telegram manzillari</h2>
+<div class="telegram-route-list">
+{% for route in destinations %}
+<article class="telegram-route">
+ <div><strong>{{ route.organization.name }}</strong><small>Chat ID: {{ route.chat_id }} · Yangilangan: {{ route.updated_at|date:'d.m.Y H:i' }}</small></div>
+ {% if route.enabled %}<span class="env-state env-good">Yoqqan</span>{% else %}<span class="env-state env-unknown">O‘chiq</span>{% endif %}
+</article>
+{% empty %}<div class="empty-state"><h3>Hali chat sozlanmagan</h3><p>Yuqoridagi formadan yangi tashkilot manzilini kiriting.</p></div>{% endfor %}
+</div>
+</section>
+{% endblock %}
