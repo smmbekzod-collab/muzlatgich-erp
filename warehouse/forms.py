@@ -84,7 +84,18 @@ class TariffForm(forms.Form):
     storage_mode=forms.ChoiceField(label='Saqlama usuli',choices=Tariff._meta.get_field('storage_mode').choices)
     bill_exit_day=forms.BooleanField(label='Chiqish kuniga ham haq olinadi',required=False)
     def __init__(self,user,*args,**kwargs):
-        super().__init__(*args,**kwargs);self.fields['camera'].queryset=cameras(user).filter(is_active=True,organization__is_active=True)
+        super().__init__(*args,**kwargs)
+        self.fields['camera'].queryset=cameras(user).filter(is_active=True,organization__is_active=True)
+        self.fields['service'].choices=[
+            ('Yangi hisoblash usullari',[
+                ('tiered','Kuniga qarab bir martalik so‘m/kg'),
+                ('rental','Butun kameraning oylik ijarasi')]),
+            ('Eski usullar (moslik uchun)',[
+                ('cooling','Eski sovutish: so‘m/kg/kun'),
+                ('storage','Eski partiya saqlama: so‘m/oy')])
+        ]
+        if not self.is_bound and not self.initial.get('service'):
+            self.initial['service']='tiered'
 
     def clean(self):
         d=super().clean()
