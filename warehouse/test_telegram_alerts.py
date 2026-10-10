@@ -224,8 +224,8 @@ class TelegramAlertsTests(TestCase):
             'organization':self.o.pk,'chat_id':self.channel.chat_id,'enabled':'on'})
         first.refresh_from_db()
         self.assertIsNotNone(first.resolved_at)
-        self.assertEqual(first.delivery_status,'disabled' if False else 'pending')
-        # Closed history is excluded from the outbox sender even when pending.
+        self.assertEqual(first.delivery_status,'disabled')
+        # Closed history cannot be sent even when a Telegram route is later re-enabled.
         
     def test_org_b_alert_does_not_reach_org_a_chat(self):
         self.reading(camera=self.cam_other)

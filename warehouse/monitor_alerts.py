@@ -70,7 +70,15 @@ def reconcile_camera(camera_id,now=None):
     for kind,old in current.items():
         if kind not in conditions:
             old.resolved_at=now
-            old.save(update_fields=['resolved_at'])
+            fields=['resolved_at']
+            # Stop queued/retry messages for a recovered incident; preserve sent history.
+            if old.delivery_status in ('pending','failed','disabled'):
+                old.delivery_status='disabled'
+                old.claimed_at=None
+                old.next_attempt_at=None
+                old.last_error='Hodisa yakunlangan'
+                fields.extend(['delivery_status','claimed_at','next_attempt_at','last_error'])
+            old.save(update_fields=fields)
     return opened
 
 
