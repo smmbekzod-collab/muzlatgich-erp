@@ -1,0 +1,70 @@
+{% extends 'warehouse/base.html' %}
+{% block content %}
+<div class="eyebrow">OMBORLAR / BUTUN KAMERA IJARASI</div>
+<h1>Kamera ijarasi</h1>
+<p class="muted">Oylik haq har bir kamera uchun bitta hisob-varaqaga yoziladi. Partiyalar bo‘yicha takroriy ijara haqi olinmaydi.</p>
+{% for error in form_errors %}<p class="notice warning" role="alert">{{ error }}</p>{% endfor %}
+<div class="rentals-grid">
+{% for item in rows %}
+<article class="card rental-card">
+ <div class="row between">
+   <div><div class="eyebrow">{{ item.agreement.camera.organization.name }} · {{ item.agreement.camera.facility.name|default:'Asosiy ombor' }}</div>
+        <h2>№{{ item.agreement.camera.number }} kamera</h2><p class="muted">Ijarachi: <strong>{{ item.agreement.customer.name }}</strong></p></div>
+   <span class="tag">Oylik ijara</span>
+ </div>
+ <p class="rent-price">{{ item.agreement.monthly_rate|floatformat:0 }} <small>so‘m/oy · boshlang‘ich narx</small></p>
+ <p class="help">Boshlanishi: {{ item.agreement.start_on|date:'d.m.Y' }}{% if item.agreement.end_on %} · Tugashi: {{ item.agreement.end_on|date:'d.m.Y' }}{% endif %}</p>
+ {% if item.can_bill %}
+ <form method="post" class="rental-actions" data-confirm>{% csrf_token %}
+    <input type="hidden" name="action" value="bill">
+    <input type="hidden" name="agreement_id" value="{{ item.agreement.pk }}">
+    <input type="hidden" name="request_key" value="{{ request_key }}">
+    <button type="submit">Oylik hisob chiqarish · {{ item.next_date|date:'d.m.Y' }}</button>
+ </form>{% endif %}
+ {% if item.can_change %}
+ <details class="rental-settings"><summary>Keyingi oy narxini o‘zgartirish</summary>
+   <form method="post" data-confirm>{% csrf_token %}
+     <input type="hidden" name="action" value="rate">
+     <input type="hidden" name="agreement_id" value="{{ item.agreement.pk }}">
+     <input type="hidden" name="effective_from" value="{{ item.next_date|date:'Y-m-d' }}">
+     <label for="rate-{{ item.agreement.pk }}">Yangi narx ({{ item.next_date|date:'d.m.Y' }} dan), so‘m</label>
+     <input id="rate-{{ item.agreement.pk }}" type="number" min="0.01" step="0.01" name="monthly_rate" inputmode="decimal" required>
+     <button class="secondary" type="submit">Yangi narxni saqlash</button>
+   </form>
+ </details>{% endif %}
+ <h3>Oylik hisoblar</h3>
+ <div class="rent-invoices">
+ {% for invoice in item.invoices %}
+ <div class="rent-invoice-row">
+   <div><a href="{% url 'rental_invoice' invoice.pk %}">{{ invoice.period_start|date:'d.m.Y' }} – {{ invoice.period_end|date:'d.m.Y' }}</a>
+   <div class="muted">Hisob: {{ invoice.amount|floatformat:0 }} so‘m · Qarz: {{ invoice.debt|floatformat:0 }} so‘m</div></div>
+   {% if item.can_payment and invoice.debt > 0 %}
+   <details><summary>To‘lov</summary>
+     <form method="post" class="rent-pay-form" data-confirm>{% csrf_token %}
+       <input type="hidden" name="action" value="payment">
+       <input type="hidden" name="invoice_id" value="{{ invoice.pk }}">
+       <input type="hidden" name="request_key" value="{{ request_key }}">
+       <label for="amount-{{ invoice.pk }}">Summa, so‘m</label><input id="amount-{{ invoice.pk }}" type="number" step="0.01" min="0.01" name="amount" required>
+       <label for="method-{{ invoice.pk }}">To‘lov turi</label>
+       <select id="method-{{ invoice.pk }}" name="method"><option value="cash">Naqd</option><option value="bank">O‘tkazma</option><option value="card">Karta</option></select>
+       <button type="submit">To‘lovni saqlash</button>
+     </form>
+   </details>{% endif %}
+ </div>
+ {% empty %}<p class="help">Hozircha hisob chiqarilmagan.</p>{% endfor %}
+ </div>
+</article>
+{% empty %}
+ <div class="card"><h2>Hozircha ijara sharti yo‘q</h2><p class="muted">Kamera bo‘sh bo‘lganda yangi ijara shartini yarating.</p></div>
+{% endfor %}
+</div>
+<section class="card form-card rental-create">
+ <h2>Yangi oylik ijara sharti</h2>
+ <p class="muted">Tashkilot administratori tarif huquqi orqali kamerani, mijozni va oylik summani belgilaydi. Yangi summa boshqa tashkilot hisobiga ta’sir qilmaydi.</p>
+ <form method="post" data-confirm>{% csrf_token %}
+   <input type="hidden" name="action" value="create">
+   {% include 'warehouse/form_fields.html' %}
+   <div class="actions"><button type="submit">Ijarani ro‘yxatga olish</button></div>
+ </form>
+</section>
+{% endblock %}

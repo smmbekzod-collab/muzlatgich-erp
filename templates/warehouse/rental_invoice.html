@@ -1,0 +1,26 @@
+{% extends 'warehouse/base.html' %}
+{% block content %}
+<article class="card receipt">
+ <header class="receipt-head">
+   <div class="eyebrow">{{ invoice.agreement.camera.organization.name }} / KAMERA IJARASI</div>
+   <h1>Oylik ijara hisob-varaqasi</h1>
+   <p>№ {{ invoice.pk }} · {{ invoice.created_at|date:'d.m.Y H:i' }}</p>
+ </header>
+ <dl class="details">
+   <div><dt>Ijarachi</dt><dd>{{ invoice.agreement.customer.name }}</dd></div>
+   <div><dt>Filial</dt><dd>{{ invoice.agreement.camera.facility.name|default:'Asosiy ombor' }}</dd></div>
+   <div><dt>Kamera</dt><dd>№{{ invoice.agreement.camera.number }}</dd></div>
+   <div><dt>Davr</dt><dd>{{ invoice.period_start|date:'d.m.Y' }} – {{ invoice.period_end|date:'d.m.Y' }}</dd></div>
+   <div><dt>Hisoblangan ijara</dt><dd>{{ invoice.amount|floatformat:0 }} so‘m</dd></div>
+   <div><dt>To‘langan</dt><dd>{{ paid|floatformat:0 }} so‘m</dd></div>
+   <div><dt>Qolgan qarz</dt><dd>{{ debt|floatformat:0 }} so‘m</dd></div>
+   <div><dt>Mas’ul</dt><dd>{{ invoice.created_by.username }}</dd></div>
+ </dl>
+ <h2>To‘lovlar</h2>
+ <div class="tablebox"><table><thead><tr><th>Sana</th><th>Summa</th><th>Usul</th><th>Mas’ul</th></tr></thead>
+ <tbody>{% for p in payments %}<tr><td>{{ p.date|date:'d.m.Y' }}</td><td>{{ p.amount|floatformat:0 }} so‘m</td><td>{{ p.get_method_display }}</td><td>{{ p.created_by.username }}</td></tr>
+ {% empty %}<tr><td colspan="4">To‘lov qayd etilmagan.</td></tr>{% endfor %}</tbody></table></div>
+ <p class="help">Bu ichki hisob-varaqa. Fiskal chek yoki rasmiy elektron hisob-faktura emas.</p>
+ <div class="actions"><button type="button" data-print>Chop etish / PDF</button><a class="button secondary" href="{% url 'rentals' %}">Ijara ro‘yxatiga qaytish</a></div>
+</article>
+{% endblock %}

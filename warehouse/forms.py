@@ -88,7 +88,10 @@ class TariffForm(forms.Form):
 
     def clean(self):
         d=super().clean()
-        if d.get('service')=='tiered':
+        if d.get('service')=='rental':
+            d['rate']=Decimal('0')
+            for key in ['tier_1_10','tier_11_15','tier_16_25','tier_26_30','tier_31_plus']:d[key]=None
+        elif d.get('service')=='tiered':
             for key in ['tier_1_10','tier_11_15','tier_16_25','tier_26_30','tier_31_plus']:
                 if d.get(key) is None:
                     self.add_error(key,'Bu bosqichning narxini kiriting.')

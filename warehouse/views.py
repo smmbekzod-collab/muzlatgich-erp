@@ -253,3 +253,80 @@ def manifest(request):return JsonResponse({'name':'Muzlatgich ERP','short_name':
 def service_worker(request):
     # Never cache financial/authenticated responses or replay offline mutations.
     return HttpResponse("self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));",content_type='application/javascript')
+
+@login_required
+def rentals(request):
+    from uuid import uuid4, UUID
+    from django.db.models import Q
+    from .models import CameraRentalAgreement
+    from .forms import CameraRentalForm
+    from .services import (open_camera_rental,issue_camera_rental_invoice,
+        pay_camera_rental_invoice,change_camera_rental_rate,next_camera_rental_month)
+    permitted=[]
+    for camera in access.cameras(request.user).filter(organization__is_active=True):
+        if any(allowed_camera_permission(request.user,camera,perm) for perm in ['tariff','payment','finance']):
+            permitted.append(camera.pk)
+    agreements=CameraRentalAgreement.objects.filter(camera_id__in=permitted).select_related(
+        'camera','camera__facility','camera__organization','customer').prefetch_related('invoices__payments','rate_changes')
+    form=CameraRentalForm(request.user,request.POST if request.method=='POST' and request.POST.get('action')=='create' else None)
+    errors=[]
+    if request.method=='POST':
+        try:
+            action=request.POST.get('action','')
+            if action=='create':
+                if form.is_valid():
+                    open_camera_rental(request.user,form.cleaned_data)
+                    messages.success(request,'Oylik kamera ijarasi saqlandi.')
+                    return redirect('rentals')
+            elif action=='bill':
+                invoice=issue_camera_rental_invoice(request.user,int(request.POST.get('agreement_id','')),
+                    UUID(request.POST.get('request_key','')))
+                messages.success(request,'Kamera ijarasi uchun oylik hisob chiqarildi.')
+                return redirect('rental_invoice',pk=invoice.pk)
+            elif action=='payment':
+                p=pay_camera_rental_invoice(request.user,int(request.POST.get('invoice_id','')),
+                    UUID(request.POST.get('request_key','')),
+                    Decimal(request.POST.get('amount','')),request.POST.get('method',''),timezone.localdate())
+                messages.success(request,'Ijara to‘lovi qayd etildi.')
+                return redirect('rental_invoice',pk=p.invoice_id)
+            elif action=='rate':
+                change_camera_rental_rate(request.user,int(request.POST.get('agreement_id','')),
+                    Decimal(request.POST.get('monthly_rate','')),date.fromisoformat(request.POST.get('effective_from','')))
+                messages.success(request,'Keyingi oy narxi belgilandi. Eski hisoblar o‘zgarmaydi.')
+                return redirect('rentals')
+            else:errors.append('Noma’lum amal.')
+        except (ValidationError,PermissionDenied,ValueError,TypeError,ArithmeticError) as e:
+            errors.extend(e.messages if isinstance(e,ValidationError) else ['Ma’lumot xato yoki ruxsat yetarli emas.'])
+    rows=[]
+    for agreement in agreements:
+        can_tariff=allowed_camera_permission(request.user,agreement.camera,'tariff')
+        can_payment=allowed_camera_permission(request.user,agreement.camera,'payment')
+        next_date=next_camera_rental_month(agreement)
+        in_term=not agreement.end_on or next_date<=agreement.end_on
+        rows.append({'agreement':agreement,'invoices':list(agreement.invoices.all()),
+           'next_date':next_date,'can_tariff':can_tariff,'can_payment':can_payment,
+           'can_bill':can_tariff and in_term and next_date<=timezone.localdate(),
+           'can_change':can_tariff and in_term and next_date>=timezone.localdate() and
+                         not agreement.rate_changes.filter(effective_from=next_date).exists()})
+    return render(request,'warehouse/rentals.html',context(request,form=form,rows=rows,
+        form_errors=errors,request_key=uuid4()))
+
+def allowed_camera_permission(user,camera,capability):
+    try:
+        access.authorize(user,camera.organization_id,camera.pk,capability)
+        return True
+    except PermissionDenied:
+        return False
+
+@login_required
+def rental_invoice(request,pk):
+    from .models import CameraRentalInvoice
+    invoice=get_object_or_404(CameraRentalInvoice.objects.select_related(
+         'agreement__camera','agreement__camera__facility','agreement__camera__organization',
+         'agreement__customer','created_by').filter(
+         agreement__camera__in=access.cameras(request.user)),pk=pk)
+    if not any(allowed_camera_permission(request.user,invoice.agreement.camera,perm)
+               for perm in ['tariff','payment','finance']):
+        raise PermissionDenied
+    return render(request,'warehouse/rental_invoice.html',context(request,invoice=invoice,
+        payments=invoice.payments.select_related('created_by'),paid=invoice.paid,debt=invoice.debt))

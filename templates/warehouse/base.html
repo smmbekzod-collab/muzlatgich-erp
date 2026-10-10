@@ -7,6 +7,7 @@
   <a href="{% url 'intake' %}" {% if request.resolver_match.url_name == 'intake' %}class="nav-current" aria-current="page"{% endif %}>＋ &nbsp; Yuk qabul qilish</a>
   <a href="{% url 'customers' %}" {% if request.resolver_match.url_name == 'customers' %}class="nav-current" aria-current="page"{% endif %}>♙ &nbsp; Mijozlar</a>
   <div class="nav-group-label">HISOB-KITOB</div>
+  <a href="{% url 'rentals' %}" {% if request.resolver_match.url_name == 'rentals' %}class="nav-current" aria-current="page"{% endif %}>▣ &nbsp; Kamera ijarasi</a>
   <a href="{% url 'tariffs' %}" {% if request.resolver_match.url_name == 'tariffs' %}class="nav-current" aria-current="page"{% endif %}>▤ &nbsp; Tariflar</a>
   <a href="{% url 'report' %}" {% if request.resolver_match.url_name == 'report' %}class="nav-current" aria-current="page"{% endif %}>▥ &nbsp; Hisob va qarzlar</a>
   <a href="{% url 'expenses' %}" {% if request.resolver_match.url_name == 'expenses' %}class="nav-current" aria-current="page"{% endif %}>◈ &nbsp; Xarajatlar</a>

@@ -7,3 +7,5 @@ urlpatterns.append(path("receipt/<uuid:pk>/reverse/",views.reverse_operation,nam
 urlpatterns.append(path("report/customers.csv",views.customer_csv,name="customer_csv"))
 
 urlpatterns.append(path("report/customer.xlsx",views.customer_excel,name="customer_excel"))
+urlpatterns.append(path("rentals/",views.rentals,name="rentals"))
+urlpatterns.append(path("rentals/invoice/<int:pk>/",views.rental_invoice,name="rental_invoice"))
