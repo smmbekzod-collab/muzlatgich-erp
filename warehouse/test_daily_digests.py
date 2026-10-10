@@ -148,3 +148,29 @@ class ThreeTimesDailyReportTests(TestCase):
         self.assertIn('Jami qarz: 0 so‘m',message)
         self.assertIn('TEST MA’LUMOTLARI',message)
         self.assertLess(len(message),4096)
+
+
+    def test_group_cannot_be_assigned_to_second_organization(self):
+        from django.urls import reverse
+        self.client.force_login(self.root)
+        response=self.client.post(reverse('telegram_destinations'),{
+            'organization':self.two.pk,'chat_id':self.route.chat_id,
+            'enabled':'on','daily_digest_enabled':'on'})
+        self.assertEqual(response.status_code,200)
+        self.assertContains(response,'boshqa faol tashkilotga tegishli')
+        self.route2.refresh_from_db()
+        self.assertEqual(self.route2.chat_id,'-10022222')
+        self.assertTrue(self.route2.enabled)
+
+    def test_disabling_digest_preserves_alerts_but_blocks_future_reports(self):
+        from django.urls import reverse
+        self.client.force_login(self.root)
+        response=self.client.post(reverse('telegram_destinations'),{
+            'organization':self.one.pk,'chat_id':self.route.chat_id,
+            'enabled':'on'})
+        self.assertEqual(response.status_code,302)
+        self.route.refresh_from_db()
+        self.assertTrue(self.route.enabled)
+        self.assertFalse(self.route.daily_digest_enabled)
+        self.assertEqual(enqueue_slot(8,now=self.now(8)),1)
+        self.assertFalse(DailyTelegramDigest.objects.filter(organization=self.one).exists())
