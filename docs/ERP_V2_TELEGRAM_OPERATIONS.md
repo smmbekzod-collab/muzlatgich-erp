@@ -51,3 +51,15 @@ Bu \`planning/national-saas-v2-20261010\` tarmog'i va mustaqil \`staging\` Postg
 3. Guruhga kirib xabarni haqiqatan ko‘ring; DBdagi \`sent\` Telegram API muvaffaqiyatini anglatadi, inson o‘qiganini emas.
 4. Kelishilgan jadval va 15 daqiqalik ogohlantirishlar bir-biridan alohida ekanini tekshiring.
 5. User chatda bot tokenini oshkor qilgan bo‘lsa, BotFather orqali tokenni yangilang va Railway’dagi \`monitoring-alerts-cron\` servisining maxfiy qiymatini almashtiring; \`telegram-3x-daily-digests\` secret ayni qiymatga referens orqali ulangan.
+
+
+## TEST vaqtida vaqtinchalik pauza — Super Admin boshqaruvi
+- \`/app/platform/telegram/\` sahifasida **08:00 / 14:00 / 20:00 hisobotlari** uchun \`Hisobotlarni o‘chirish\` / \`Hisobotlarni yoqish\` mavjud.
+- Shu sahifada **Harorat va namlik ogohlantirishlari** alohida \`Ogohlantirishlarni o‘chirish\` / \`Ogohlantirishlarni yoqish\` tugmasi bilan boshqariladi. Bularni ikkalasini o‘chirish barcha Telegram jo‘natishlarini to‘xtatadi.
+- Har bir tashkilot qatoridagi \`Hisobotni o‘chirish / yoqish\` tugmasi faqat shu tashkilotning uch mahal hisobotlarini boshqaradi; shu tashkilotning xavf ogohlantirishlariga ta’sir qilmaydi.
+- Tugmalar faqat faol Super Admin uchun, barcha POST so‘rovlar CSRF bilan himoyalangan.
+- Pauza vaqtida yangi davriy hisobot hosil qilinmaydi, mavjud navbatdagi hisobotlar to‘xtatiladi, bot API chaqiruvlari amalga oshirilmaydi. Oldin yuborilgan hisobotlar va ombor DB yozuvlari saqlanadi.
+- Hisobotlar qayta yoqilganda **o‘tkazib yuborilgan vaqtlarning barcha hisobotlari birdan yuborilmaydi**; keyingi rejalashtirilgan 08/14/20 soatdan davom etadi.
+- Kamera ogohlantirishlari qayta yoqilgach, hamon faol bo‘lgan muammolar keyingi monitor tekshiruvida qayd etilishi va yuborilishi mumkin.
+- **Railway xarajati:** tugma cron ishini ma’lumot olish/yuborish bosqichida erta tugatadi, ammo Railway rejalashtirilgan instansiyani ishga tushirish uchun resurs ishlatishi mumkin. To‘liq nol-ijro uchun cron xizmatlarini Railway interfeysida alohida to‘xtatish yoki jadvalini o‘zgartirish zarur, lekin bu holda ilovadagi tugmaning o‘zi cronni qayta faollashtirmaydi. Eski ERP xizmatlari va PostgreSQL o‘chirilmaydi.
+- 2026-10-10: TEST muhiti alohida himoyalangan bir martalik komanda bilan \`reports=OFF\`, \`alerts=OFF\` qilib pauzaga qo‘yildi. Demo tashkilot, o‘lchov, QR, ijara va qarz ma’lumotlari o‘zgartirilmaydi.
