@@ -191,15 +191,54 @@ def reverse_operation(request,pk):
 
 @login_required
 def tariffs(request):
-    form=TariffForm(request.user,request.POST or None)
+    preview_tariff=None
+    initial=None
+    copy_id=request.GET.get('copy','') if request.method=='GET' else ''
+    if copy_id.isdecimal():
+        candidate=Tariff.objects.filter(pk=int(copy_id),is_active=True,
+            organization__in=access.organizations(request.user)).first()
+        if candidate:
+            from core.access import cameras
+            authorized=[]
+            for cam in cameras(request.user).filter(organization=candidate.organization,is_active=True):
+                try:access.authorize(request.user,cam.organization_id,cam.pk,'tariff');authorized.append(cam)
+                except PermissionDenied:pass
+            if authorized:
+                preview_tariff=candidate
+                initial={'camera':authorized[0].pk, 'name':candidate.name,
+                   'service':candidate.service,'basis':candidate.basis,'rate':candidate.rate,
+                   'storage_mode':candidate.storage_mode,'bill_exit_day':candidate.bill_exit_day}
+                for name in ['tier_1_10','tier_11_15','tier_16_25','tier_26_30','tier_31_plus']:
+                    initial[name]=getattr(candidate,name)
+    form=TariffForm(request.user,request.POST or None,initial=initial)
     if request.method=='POST' and form.is_valid():
         d=form.cleaned_data;cam=d.pop('camera')
-        try:access.authorize(request.user,cam.organization_id,cam.pk,'tariff')
-        except PermissionDenied as e:form_error(form,e)
-        else:Tariff.objects.create(organization=cam.organization,created_by=request.user,**d);messages.success(request,'Yangi tarif saqlandi. Eski yuklar tarifi o‘zgarmaydi.');return redirect('tariffs')
+        try:
+            access.authorize(request.user,cam.organization_id,cam.pk,'tariff')
+            with transaction.atomic():
+                prior_id=request.POST.get('replace_tariff','').strip()
+                previous=None
+                if prior_id:
+                    if not prior_id.isdecimal():raise ValidationError('Tarif identifikatori noto‘g‘ri.')
+                    previous=Tariff.objects.select_for_update().filter(
+                        pk=int(prior_id),organization=cam.organization,is_active=True).first()
+                    if previous is None:raise ValidationError('Eski tarif mavjud emas yoki boshqa tashkilotga tegishli.')
+                Tariff.objects.create(organization=cam.organization,created_by=request.user,**d)
+                if previous:
+                    previous.is_active=False
+                    previous.save(update_fields=['is_active'])
+        except (ValidationError,PermissionDenied) as e:
+            form_error(form,e)
+        else:
+            messages.success(request,'Tarifning yangi versiyasi saqlandi. Oldingi partiyalar tarifi o‘zgarmaydi.')
+            return redirect('tariffs')
     rows=Tariff.objects.filter(organization__in=access.organizations(request.user)).select_related('organization').order_by('-created_at')
-    return render(request,'warehouse/catalog.html',context(request,form=form,rows=rows,title='Tariflar',catalog='tariffs'))
-
+    can_edit_ids=set()
+    for cam in access.cameras(request.user).filter(is_active=True,organization__is_active=True):
+        try:access.authorize(request.user,cam.organization_id,cam.pk,'tariff');can_edit_ids.add(cam.organization_id)
+        except PermissionDenied:pass
+    return render(request,'warehouse/catalog.html',context(request,form=form,rows=rows,
+        title='Tariflar',catalog='tariffs',edit_org_ids=can_edit_ids,copy_tariff=preview_tariff))
 @login_required
 def expenses(request):
     form=ExpenseForm(request.user,request.POST or None)

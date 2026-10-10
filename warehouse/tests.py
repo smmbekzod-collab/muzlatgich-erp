@@ -270,6 +270,36 @@ class WorkflowTests(TestCase):
         self.assertIn('tier_31_plus',form.errors)
         d['camera']=self.cb.pk
         self.assertFalse(TariffForm(self.u,data=d).is_valid())
+
+    def test_admin_can_replace_tariff_without_repricing_existing_lot(self):
+        self.client.force_login(self.u)
+        url='/app/tariffs/'
+        current=self.tariff
+        d={'camera':str(self.c1.pk),'name':'Yangilangan','service':'tiered','basis':'net',
+           'tier_1_10':'260','tier_11_15':'350','tier_16_25':'420',
+           'tier_26_30':'460','tier_31_plus':'470','storage_mode':'prorata',
+           'replace_tariff':str(current.pk)}
+        response=self.client.post(url,d)
+        self.assertEqual(response.status_code,302)
+        current.refresh_from_db()
+        self.assertFalse(current.is_active)
+        self.lot.refresh_from_db()
+        self.assertEqual(self.lot.rate,D('300'))
+        new=Tariff.objects.get(name='Yangilangan')
+        self.assertEqual(new.organization_id,self.a.pk)
+        self.assertEqual(new.tier_1_10,D('260'))
+
+    def test_admin_cannot_replace_foreign_tenant_tariff(self):
+        other=Tariff.objects.create(organization=self.b,name='Boshqa',service='cooling',rate=333,created_by=self.root)
+        self.client.force_login(self.u)
+        d={'camera':str(self.c1.pk),'name':'Yangi','service':'cooling','basis':'net',
+           'rate':'500','storage_mode':'prorata','replace_tariff':str(other.pk)}
+        response=self.client.post('/app/tariffs/',d)
+        self.assertEqual(response.status_code,200)
+        self.assertContains(response,'boshqa tashkilotga tegishli')
+        other.refresh_from_db()
+        self.assertTrue(other.is_active)
+        self.assertFalse(Tariff.objects.filter(name='Yangi').exists())
     def test_login_throttle(self):
         self.client.logout()
         for i in range(5):self.assertEqual(self.client.post('/admin/login/',{'username':'keeper','password':'incorrect'}).status_code,200)

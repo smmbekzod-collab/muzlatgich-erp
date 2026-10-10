@@ -71,6 +71,16 @@ class Lot(models.Model):
     def net(self):return self.gross-self.tare
     @property
     def short_id(self):return str(self.id)[:8].upper()
+    @property
+    def rate_description(self):
+        if self.service=='rental':
+            return 'Kamera ijara sharti bo‘yicha, partiya uchun 0 so‘m'
+        if self.service=='tiered':
+            return ' | '.join([f'{period}: {getattr(self,field):,.0f} so‘m/kg'
+              for period,field in [('1–10','tier_1_10'),('11–15','tier_11_15'),
+                     ('16–25','tier_16_25'),('26–30','tier_26_30'),('31+','tier_31_plus')]
+              if getattr(self,field) is not None])
+        return f'{self.rate:,.0f} so‘m/' + ('kg/kun' if self.service=='cooling' else 'oy')
     def __str__(self):return f'{self.short_id} · {self.product}'
 
 class Operation(models.Model):

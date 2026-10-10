@@ -1,1 +1,54 @@
-{% extends 'warehouse/base.html' %}{% block content %}<h1>{{ title }}</h1>{% if catalog == 'tariffs' %}<p class="muted">Yangi tarif keyingi kirimlar uchun ishlatiladi. Oldingi partiya tarifi o‘zgarmaydi.</p>{% endif %}<div class="tablebox"><table><thead><tr><th>Nomi</th><th>Tashkilot</th><th>{% if catalog == 'customers' %}Telefon{% else %}Xizmat / narx{% endif %}</th></tr></thead><tbody>{% for row in rows %}<tr><td>{{ row.name }}</td><td>{{ row.organization.name }}</td><td>{% if catalog == 'customers' %}{{ row.phone }}{% else %}{% if row.service == 'tiered' %}1–10: {{ row.tier_1_10|floatformat:0 }} / 11–15: {{ row.tier_11_15|floatformat:0 }} / 16–25: {{ row.tier_16_25|floatformat:0 }} / 26–30: {{ row.tier_26_30|floatformat:0 }} / 31+: {{ row.tier_31_plus|floatformat:0 }} so‘m/kg{% else %}{{ row.get_service_display }} · {{ row.rate|floatformat:0 }} so‘m{% endif %}{% endif %}</td></tr>{% empty %}<tr><td colspan="3">Hozircha yozuv yo‘q.</td></tr>{% endfor %}</tbody></table></div><h2 style="margin-top:24px">Yangi yozuv</h2><form class="card form-card" method="post" data-confirm>{% csrf_token %}{% include 'warehouse/form_fields.html' %}<div class="actions"><button>Saqlash</button></div></form>{% endblock %}
+{% extends 'warehouse/base.html' %}
+{% block content %}
+<div class="eyebrow">OMBOR / NARXLAR VA MIJOZLAR</div>
+<h1>{{ title }}</h1>
+{% if catalog == 'tariffs' %}<p class="muted">Har bir tashkilot o‘z narxini belgilaydi. “Narxni o‘zgartirish” yangi tarif versiyasini yaratadi, eski yuklar summasi qayta hisoblanmaydi.</p>{% endif %}
+<div class="tablebox responsive-table catalog-table"><table>
+<thead><tr><th>Nomi</th><th>Tashkilot</th><th>{% if catalog == 'customers' %}Telefon{% else %}Xizmat / narx{% endif %}</th>{% if catalog == 'tariffs' %}<th>Holati va amal</th>{% endif %}</tr></thead>
+<tbody>{% for row in rows %}
+<tr><td data-label="Nomi"><strong>{{ row.name }}</strong></td>
+  <td data-label="Tashkilot">{{ row.organization.name }}</td>
+  <td data-label="Xizmat / narx">{% if catalog == 'customers' %}{{ row.phone }}{% elif row.service == 'tiered' %}
+  <div class="rate-bands"><span>1–10: {{ row.tier_1_10|floatformat:0 }}</span><span>11–15: {{ row.tier_11_15|floatformat:0 }}</span><span>16–25: {{ row.tier_16_25|floatformat:0 }}</span><span>26–30: {{ row.tier_26_30|floatformat:0 }}</span><span>31+: {{ row.tier_31_plus|floatformat:0 }}</span></div><small>so‘m/kg</small>
+  {% elif row.service == 'rental' %}Kamera ijarasi — partiya uchun 0 so‘m. Oylik summa <a href="{% url 'rentals' %}">ijara modulida</a>.{% else %}{{ row.get_service_display }} · {{ row.rate|floatformat:0 }} so‘m{% endif %}</td>
+  {% if catalog == 'tariffs' %}<td data-label="Holat">{% if row.is_active %}<span class="tag">Faol</span> {% if row.organization_id in edit_org_ids %}<a class="tariff-edit-link" href="?copy={{ row.pk }}#tariff-form">Narxni o‘zgartirish →</a>{% endif %}
+  {% else %}<span class="tag closed">Eski versiya</span>{% endif %}</td>{% endif %}
+</tr>
+{% empty %}<tr><td colspan="4">Hozircha yozuv yo‘q.</td></tr>{% endfor %}</tbody>
+</table></div>
+<section class="card form-card tariff-form-card" id="tariff-form">
+  <h2>{% if copy_tariff %}Narxning yangi versiyasi{% else %}Yangi yozuv{% endif %}</h2>
+  {% if copy_tariff %}<p class="notice">“{{ copy_tariff.name }}” tarifining yangi versiyasini yaratasiz. Eski versiyasi yangi kirimlarga yopiladi.</p>{% endif %}
+  <form method="post" data-confirm {% if catalog == 'tariffs' %}data-tariff-form{% endif %}>
+    {% csrf_token %}{% if copy_tariff %}<input type="hidden" name="replace_tariff" value="{{ copy_tariff.pk }}">{% endif %}
+    {% include 'warehouse/form_fields.html' %}
+    {% if catalog == 'tariffs' %}<p class="help">“Muddatga ko‘ra” — 1–10, 11–15, 16–25, 26–30, 31+ kun narxlari. “Kamera ijarasi” — tarif turi, haqiqiy oylik narx ijara shartida belgilanadi.</p>{% endif %}
+    <div class="actions"><button type="submit">Saqlash</button></div>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}{% if catalog == 'tariffs' %}
+<script>
+(function () {
+  const form = document.querySelector('[data-tariff-form]');
+  if (!form) return;
+  const select = form.querySelector('[name="service"]');
+  function refresh() {
+    const tiered = select.value === 'tiered';
+    const legacy = select.value === 'cooling' || select.value === 'storage';
+    for (const name of ['tier_1_10','tier_11_15','tier_16_25','tier_26_30','tier_31_plus']) {
+      const input = form.querySelector('[name="'+name+'"]');
+      if (input) input.closest('.field').hidden = !tiered;
+    }
+    const rate = form.querySelector('[name="rate"]');
+    if (rate) rate.closest('.field').hidden = !legacy;
+    const storage = form.querySelector('[name="storage_mode"]');
+    if (storage) storage.closest('.field').hidden = select.value !== 'storage';
+    const day = form.querySelector('[name="bill_exit_day"]');
+    if (day) day.closest('.field').hidden = select.value !== 'cooling' && select.value !== 'storage';
+  }
+  select.addEventListener('change', refresh);
+  refresh();
+})();
+</script>
+{% endif %}{% endblock %}
