@@ -71,6 +71,12 @@ class DemoSeedTests(TestCase):
         for path in ['/app/','/app/platform/','/app/report/','/app/monitor/','/app/monitor/director/','/app/rentals/','/app/platform/staff/']:
             with self.subTest(path=path):
                 self.assertEqual(self.client.get(path).status_code,200)
+        # Regression: a monitored camera with OPEN lots must render without
+        # attempting to assign the read-only current_stay_days property.
+        demo_cam=Camera.objects.get(pk=lot.camera_id)
+        self.assertEqual(
+            self.client.get('/app/monitor/camera/'+str(demo_cam.pk)+'/',secure=True,
+                HTTP_HOST='localhost').status_code,200)
         counts=(Organization.objects.count(),Camera.objects.count(),
             Lot.objects.count(),Operation.objects.count(),
             CameraEnvironmentReading.objects.count(),
