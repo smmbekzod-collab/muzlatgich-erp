@@ -316,3 +316,20 @@ button:focus-visible,.button:focus-visible,a:focus-visible { outline:3px solid #
 @media(max-width:920px){.env-detail-forms{grid-template-columns:1fr}}
 @media(max-width:600px){.env-kpis{gap:8px}.env-kpis article{padding:12px}.env-kpis article span{font-size:10px}.env-kpis article strong{font-size:24px}.env-grid{grid-template-columns:1fr}.env-filter{display:grid;grid-template-columns:1fr 1fr}.env-filter label,.env-filter select{grid-column:1/-1;width:100%}.env-summary{grid-template-columns:1fr}.env-detail-forms>.card{padding:16px}.env-reading-values strong{font-size:24px}}
 @media print{.env-filter,.env-form,.env-pagination,.env-card-link{display:none!important}.env-card{break-inside:avoid}}
+
+/* Executive monitoring – compact, responsive and camera-scoped */
+.executive-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0}
+.executive-kpis>div{border:1px solid #deebe2;background:#fff;border-radius:13px;padding:17px}
+.executive-kpis span,.executive-kpis small{display:block;color:#627b6e;font-size:11px}
+.executive-kpis strong{display:block;font-size:29px;font-variant-numeric:tabular-nums;margin:5px 0}
+.executive-kpis strong.exec-alert{color:#a65427}
+.executive-section{margin:27px 0}
+.executive-alert-list{display:grid;gap:9px}
+.executive-alert-item{background:#fff;border:1px solid #f0dfd1;border-left:4px solid #d4804c;border-radius:11px;padding:15px;display:flex;gap:16px;justify-content:space-between}
+.executive-alert-item strong{display:block}
+.executive-alert-item small{color:#718275;display:block;margin-top:4px;font-size:11px}
+.executive-alert-item p{font-size:12px;margin:7px 0 0}
+.executive-alert-item>div:last-child{display:flex;flex-direction:column;align-items:end;gap:3px;flex:none}
+.executive-alert-item a{font-size:12px;font-weight:720}
+@media(max-width:850px){.executive-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:500px){.executive-kpis{gap:8px}.executive-kpis>div{padding:12px}.executive-kpis strong{font-size:24px}.executive-alert-item{display:block}.executive-alert-item>div:last-child{align-items:start;margin-top:10px}}

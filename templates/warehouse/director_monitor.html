@@ -1,0 +1,63 @@
+{% extends 'warehouse/base.html' %}
+{% block title %}Rahbar monitoringi · Muzlatgich ERP{% endblock %}
+{% block content %}
+<section class="overview-head">
+  <div><div class="eyebrow">RAHBAR / RESPUBLIKA OMBOR NAZORATI</div>
+    <h1>Kameralar holati va ogohlantirishlar</h1>
+    <p class="muted">Sizga ruxsat berilgan tashkilot va filiallar. Ogohlantirishlar operator belgilagan me’yor va qaydlarga asoslanadi.</p></div>
+  <div class="overview-actions">
+    <a class="button secondary" href="{% url 'monitor_overview' %}">O‘lchovlar →</a>
+    <a class="button secondary" href="{% url 'report' %}">Moliyaviy hisobot ↗</a>
+  </div>
+</section>
+<div class="executive-kpis">
+ <div><span>Ko‘riladigan kameralar</span><strong>{{ total_visible_cameras }}</strong><small>Jami ruxsat berilgan kameralar</small></div>
+ <div><span>Diqqat talab etiladi</span><strong class="exec-alert">{{ attention_count }}</strong><small>Shu sahifada</small></div>
+ <div><span>Me’yorda</span><strong>{{ stable_count }}</strong><small>Shu sahifada, qayd bo‘yicha</small></div>
+ <div><span>O‘lchov yo‘q</span><strong>{{ missing_count }}</strong><small>Shu sahifada</small></div>
+</div>
+<form method="get" class="env-filter">
+ <label for="director-org">Tashkilot</label>
+ <select name="organization" id="director-org"><option value="">Barcha ruxsat etilgan</option>
+ {% for org in organizations %}<option value="{{ org.pk }}" {% if selected_org == org.pk|stringformat:'s' %}selected{% endif %}>{{ org.name }}</option>{% endfor %}</select>
+ <button type="submit">Ko‘rsatish</button><a class="button secondary" href="{% url 'director_monitor' %}">Tozalash</a>
+</form>
+<section class="executive-section">
+ <div class="section-heading"><div><h2>Faol ogohlantirishlar</h2><p class="muted">Ushbu sahifadagi {{ open_incident_count }} ta ochiq hodisa. Telegram holati quyida alohida ko‘rsatiladi.</p></div></div>
+ <div class="executive-alert-list">
+ {% for alert in recent_incidents %}
+ <article class="executive-alert-item">
+  <div><strong>{{ alert.get_kind_display }}</strong><small>{{ alert.camera.organization.name }} / №{{ alert.camera.number }} kamera</small>
+   <p>{{ alert.description }}</p></div>
+  <div><span class="env-state env-alert">Diqqat</span><small>Telegram: {{ alert.get_delivery_status_display }}</small>
+   <a href="{% url 'monitor_camera' alert.camera_id %}">Kameraga o‘tish →</a></div>
+ </article>
+ {% empty %}<div class="empty-state"><h3>Ochiq hodisalar yo‘q</h3><p>Ushbu sahifadagi kameralar bo‘yicha qayd qilingan faol ogohlantirish topilmadi. O‘lchov kiritilmagan kameralar alohida ko‘rsatiladi.</p></div>{% endfor %}
+ </div>
+</section>
+<section class="executive-section">
+<div class="section-heading"><div><h2>Filial va kameralar</h2><p class="muted">Harorat va namlik, eng eski partiya va tekshiruv holati</p></div></div>
+<div class="env-grid">
+{% for item in rows %}
+<article class="env-card">
+ <div class="env-card-top"><div><span class="eyebrow">{{ item.camera.organization.name }} / {{ item.camera.facility.name|default:'Asosiy ombor' }}</span>
+  <h2>№{{ item.camera.number }} kamera</h2></div><span class="env-state env-{{ item.state }}">{{ item.label }}</span></div>
+ <div class="env-reading-values">
+   <div><span>Harorat</span><strong>{% if item.reading %}{{ item.reading.temperature|floatformat:1 }}°C{% else %}—{% endif %}</strong></div>
+   <div><span>Namlik</span><strong>{% if item.reading %}{{ item.reading.humidity|floatformat:1 }}%{% else %}—{% endif %}</strong></div>
+ </div>
+ <div class="env-facts"><span>O‘lchov: {% if item.reading %}{{ item.reading.measured_at|date:'d.m.Y H:i' }}{% else %}kiritilmagan{% endif %}</span>
+  <span>Eng eski mahsulot: {% if item.storage_days %}{{ item.storage_days }} kun{% else %}yo‘q{% endif %}</span></div>
+ {% if item.issues %}<div class="env-warnings">{% for issue in item.issues %}<p>{{ issue }}</p>{% endfor %}</div>{% endif %}
+ <a class="env-card-link" href="{% url 'monitor_camera' item.camera.pk %}">Batafsil tekshirish →</a>
+</article>
+{% empty %}<div class="empty-state"><h3>Kamera topilmadi</h3><p>Ruxsat yoki filtrni tekshiring.</p></div>{% endfor %}
+</div></section>
+{% if page.has_other_pages %}
+<nav class="env-pagination" aria-label="Sahifalash">
+ {% if page.has_previous %}<a href="?organization={{ selected_org }}&page={{ page.previous_page_number }}">← Oldingi</a>{% endif %}
+ <span>{{ page.number }}/{{ page.paginator.num_pages }}</span>
+ {% if page.has_next %}<a href="?organization={{ selected_org }}&page={{ page.next_page_number }}">Keyingi →</a>{% endif %}
+</nav>{% endif %}
+<p class="env-disclaimer">Ogohlantirishlar ichki monitoring uchun. Bu avtomatik laboratoriya nazorati emas. Telegram xabarlari faqat tashkilot yo‘nalishi va bot tokeni sozlangach jo‘natilishi mumkin.</p>
+{% endblock %}

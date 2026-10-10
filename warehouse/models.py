@@ -5,6 +5,7 @@ from django.db import models,transaction
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.utils import timezone
+from django.utils import timezone
 from core.models import Organization,Camera
 
 class Customer(models.Model):

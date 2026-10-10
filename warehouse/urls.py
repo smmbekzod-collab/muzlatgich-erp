@@ -10,6 +10,7 @@ urlpatterns.append(path("report/customers.csv",views.customer_csv,name="customer
 
 urlpatterns.append(path("report/customer.xlsx",views.customer_excel,name="customer_excel"))
 urlpatterns.append(path('monitor/',environment_views.monitor_overview,name='monitor_overview'))
+urlpatterns.append(path('monitor/director/',environment_views.director_monitor,name='director_monitor'))
 urlpatterns.append(path('monitor/camera/<int:camera_id>/',environment_views.monitor_camera,name='monitor_camera'))
 urlpatterns.append(path('monitor/camera/<int:camera_id>/export.csv',environment_views.monitor_csv,name='monitor_csv'))
 urlpatterns.append(path("rentals/",views.rentals,name="rentals"))

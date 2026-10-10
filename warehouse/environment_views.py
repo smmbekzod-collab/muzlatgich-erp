@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Min, OuterRef, Subquery
+from django.db.models import Min, OuterRef, Subquery, Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -17,7 +17,8 @@ from core import access
 from core.models import Camera
 from .environment_forms import CameraEnvironmentPolicyForm, CameraEnvironmentReadingForm
 from .environment_logic import assess_camera
-from .models import CameraEnvironmentPolicy, CameraEnvironmentReading, Lot
+from .models import CameraEnvironmentPolicy, CameraEnvironmentReading, Lot, CameraEnvironmentAlert
+from .monitor_alerts import reconcile_camera
 
 
 def _has_permission(user,camera,ability):
@@ -99,6 +100,7 @@ def monitor_camera(request,camera_id):
                     saved.updated_by=request.user
                     saved.full_clean()
                     saved.save()
+                    reconcile_camera(camera.pk)
                 messages.success(request,'Harorat, namlik va nazorat muddatlari saqlandi.')
                 return redirect('monitor_camera',camera_id=camera.pk)
         elif action=='reading':
@@ -109,7 +111,9 @@ def monitor_camera(request,camera_id):
                 observation.camera=camera
                 observation.recorded_by=request.user
                 observation.source='manual'
-                observation.save()
+                with transaction.atomic():
+                    observation.save()
+                    reconcile_camera(camera.pk)
                 messages.success(request,'O‘lchov jurnalga saqlandi. Ogohlantirishlar yangilandi.')
                 return redirect('monitor_camera',camera_id=camera.pk)
         else:
@@ -161,3 +165,60 @@ def monitor_csv(request,camera_id):
             x.temperature,x.humidity,x.get_source_display(),safe(x.recorded_by.username),
             safe(x.note)])
     return response
+
+
+@login_required
+@require_GET
+def director_monitor(request):
+    """Scoped executive overview. Keep all counts limited to the user's cameras."""
+    if request.user.is_superuser:
+        allowed=access.cameras(request.user).filter(organization__is_active=True)
+    else:
+        finance_orgs=access.memberships(request.user).filter(
+            can_view_finance=True).values('organization_id')
+        allowed=access.cameras(request.user).filter(
+            organization_id__in=finance_orgs,organization__is_active=True)
+
+    selected=request.GET.get('organization','')
+    choices=access.organizations(request.user).filter(
+        pk__in=allowed.values('organization_id'),is_active=True).order_by('name')
+    if selected:
+        allowed=allowed.filter(organization_id=int(selected)) if selected.isdecimal() else allowed.none()
+
+    allowed=allowed.select_related('organization','facility').order_by(
+        'organization__name','facility__name','number','pk')
+    page=Paginator(allowed,24).get_page(request.GET.get('page',1))
+    cams=list(page.object_list)
+    ids=[c.pk for c in cams]
+    active_alerts=CameraEnvironmentAlert.objects.filter(
+        camera_id__in=ids,resolved_at__isnull=True).select_related(
+        'camera','camera__organization').order_by('-opened_at','-pk')
+    by_camera={}
+    for alert in active_alerts:
+        by_camera.setdefault(alert.camera_id,[]).append(alert)
+    latest=CameraEnvironmentReading.objects.filter(camera_id=OuterRef('pk')).order_by('-measured_at','-pk')
+    latest_ids=list(Camera.objects.filter(pk__in=ids).annotate(
+        reading_id=Subquery(latest.values('pk')[:1])).values_list('reading_id',flat=True))
+    readings={r.camera_id:r for r in CameraEnvironmentReading.objects.filter(
+        pk__in=[n for n in latest_ids if n is not None])}
+    policies={p.camera_id:p for p in CameraEnvironmentPolicy.objects.filter(camera_id__in=ids)}
+    oldest={row['camera_id']:row['first'] for row in Lot.objects.filter(
+        camera_id__in=ids,closed_on__isnull=True).values('camera_id').annotate(first=Min('received_on'))}
+    now=timezone.now()
+    rows=[]
+    from .environment_logic import assess_camera
+    for cam in cams:
+        condition=assess_camera(cam,policies.get(cam.pk),readings.get(cam.pk),oldest.get(cam.pk),now)
+        condition['open_alerts']=by_camera.get(cam.pk,[])
+        rows.append(condition)
+    return render(request,'warehouse/director_monitor.html',{
+        'today':timezone.localdate(),'rows':rows,'page':page,
+        'organizations':choices,'selected_org':selected,
+        'camera_count':len(rows),
+        'attention_count':sum(r['state']=='alert' or bool(r['open_alerts']) for r in rows),
+        'missing_count':sum(r['state']=='missing' for r in rows),
+        'stable_count':sum(r['state']=='good' for r in rows),
+        'open_incident_count':sum(len(r['open_alerts']) for r in rows),
+        'recent_incidents':list(active_alerts[:20]),
+        'total_visible_cameras':allowed.count(),
+    })

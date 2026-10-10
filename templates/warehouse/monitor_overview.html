@@ -4,7 +4,7 @@
 <section class="overview-head">
   <div><div class="eyebrow">OMBOR / QO‘LDA MONITORING</div><h1>Harorat va namlik</h1>
     <p class="muted">Har bir kameradagi oxirgi o‘lchovlar va belgilangan chegaralar. Hozircha IoT datchik ulanmagan.</p></div>
-  <a class="button secondary" href="{% url 'dashboard' %}">← Ombor bosh sahifasi</a>
+  <div class="overview-actions"><a class="button secondary" href="{% url 'director_monitor' %}">Rahbar paneli ↗</a><a class="button secondary" href="{% url 'dashboard' %}">← Ombor bosh sahifasi</a></div>
 </section>
 <section class="env-kpis" aria-label="Sahifadagi kameralar holati">
   <article><span>Ko‘rsatilgan kameralar</span><strong>{{ camera_count }}</strong></article>
