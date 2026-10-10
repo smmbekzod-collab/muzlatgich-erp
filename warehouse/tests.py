@@ -234,9 +234,9 @@ class WorkflowTests(TestCase):
         for age,rate in [(1,250),(10,250),(11,300),(15,300),(16,400),
                          (25,400),(26,450),(30,450),(31,450),(50,450)]:
             with self.subTest(days=age):
-                lot.received_on=date(2026,9,1)
-                lot.last_stock_date=date(2026,9,1)
-                calculated=quote(lot,'dispatch',date(2026,9,1)+timedelta(days=age-1),
+                lot.received_on=date(2026,8,1)
+                lot.last_stock_date=date(2026,8,1)
+                calculated=quote(lot,'dispatch',date(2026,8,1)+timedelta(days=age-1),
                                  100,D('1100'),D('100'))
                 self.assertEqual(calculated['charge'], D(1000)*D(rate))
                 self.assertEqual(calculated['days'],age)
