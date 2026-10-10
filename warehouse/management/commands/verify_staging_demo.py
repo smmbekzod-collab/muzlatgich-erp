@@ -59,7 +59,7 @@ class Command(BaseCommand):
             (reverse('monitor_csv',args=[cam.pk]),'csv'),
             (reverse('report')+'?export=csv','csv'),
             (reverse('report')+'?export=xlsx','xlsx'),
-            (reverse('lot_qr',args=[lot.pk]),'qr'),
+            (reverse('qr',args=[lot.pk]),'qr'),
         ]
         for path,kind in urls:
             res=client.get(path,secure=True)
