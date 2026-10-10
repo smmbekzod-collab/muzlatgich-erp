@@ -29,3 +29,25 @@
 
 ## Holat
 Bu \`planning/national-saas-v2-20261010\` tarmog'i va mustaqil \`staging\` PostgreSQL bazasiga tegishli. Eski \`main\` va amaldagi \`muzlatgich-erp\` bazasi o'zgarmaydi. Draft PR #1 hali merge qilinmaydi.
+
+
+## Uch mahal tashkilot bo‘yicha avtomatik hisobot (2026-10-10)
+- **08:00**, **14:00** va **20:00** Toshkent vaqtida har bir faol va yoqilgan Telegram chat uchun alohida umumiy hisobot.
+- Railway cron UTC jadvali: \`0 3,9,15 * * *\`. Xizmat nomi: \`telegram-3x-daily-digests\`, komandasi: \`python manage.py send_scheduled_digests\`. Railway cron bir necha daqiqa kechikishi mumkin.
+- 08:00 hisobot oralig‘i — avvalgi kundagi 20:00 dan, 14:00 — bugungi 08:00 dan, 20:00 — bugungi 14:00 dan.
+- Hisobot: tashkilot nomi, faol partiyalar, qolgan yashiklar va kg, band kameralar, oraliqdagi kirim va chiqim, oraliqda yozilgan to‘lovlar, mavjud yuk bo‘yicha qarz, avval hisoblangan kamera ijarasi qarzi, faol kuzatuv ogohlantirishlari.
+- \`(organization, report_date, slot_hour)\` birikmasi DBda noyob; jadval qayta ishga tushganda shu davr uchun ikkinchi yozuv yaratmaydi. Telegram API xabarni qabul qilgandan so‘ng worker to‘xtab qolsa, kamdan-kam hollarda qayta urinish takroriy xabar yetkazishi mumkin.
+- Cron worker qayta urinish navbati uchun eski \`monitoring-alerts-cron\` xizmatiga tegishli \`process_monitor_alerts\` komandasini ham ishlatadi; 15 daqiqalik xavfsizlik ogohlantirishlari o‘zgarmaydi.
+- Xodim/mijoz ismlari Telegram xabarda yuborilmaydi. Tashkilotlar faqat \`organization_id\` bo‘yicha SQL filtrlangan; qarzlar alohida kompaniya bilan qo‘shilmaydi.
+- Telegram chatbot bitta: tashkilotlar soni ko‘payishi uchun BotFather orqali qayta-qayta bot yaratish shart emas. Har tashkilotning o‘z guruh/chat ID si bor. **Bir faol chat ID ni ikkita tashkilotga bog‘lash taqiqlanadi**, shunda ma’lumotlar bir guruhga aralashmaydi.
+- Agar Super Admin \`08:00, 14:00, 20:00 — umumiy hisobotlar\` tugmasini o‘chirsa, bu tashkilotning kunlik hisobotlari to‘xtaydi, lekin kamera ogohlantirishlari mustaqil ravishda ishlashi mumkin.
+- Telegram yuborish tezligi cheklovi (odatda guruhga daqiqasiga 20 ta, ommaviy bot uchun taxminan soniyasiga 30 ta xabar) e’tiborga olingan; navbat qayta ishlanadi va yuborish cheklangan tezlikda bajariladi.
+- Sinov uchun \`TEST — Agro Star Muzlatkich ERP\` tashkiloti yagona tasdiqlangan \`Muzlatgichtest\` guruhiga biriktirilgan. Bir martalik namuna xabari davriy jadvalda haqiqiy hisob deb qayd etilmaydi. Namuna yuborgan alohida Railway servisi ishlatilib bo‘lgach o‘chiriladi.
+- Faqat TEST/STAGING tarmog‘ida. Telefon orqali haqiqiy foydalanish va backup/restore qabul testlari o‘tkazilmaguncha \`main\` ga merge qilinmaydi.
+
+### Xabar yuborishni tekshirish
+1. Super Admin: \`/app/platform/telegram/\` — tashkilotga tegishli chat ID hamda ikkita mustaqil bayroq (ogohlantirish, 3 mahal hisobot).
+2. Railway: \`telegram-3x-daily-digests\` xizmatida cron \`0 3,9,15 * * *\` bo‘lishi kerak (Toshkent UTC+5).
+3. Guruhga kirib xabarni haqiqatan ko‘ring; DBdagi \`sent\` Telegram API muvaffaqiyatini anglatadi, inson o‘qiganini emas.
+4. Kelishilgan jadval va 15 daqiqalik ogohlantirishlar bir-biridan alohida ekanini tekshiring.
+5. User chatda bot tokenini oshkor qilgan bo‘lsa, BotFather orqali tokenni yangilang va Railway’dagi \`monitoring-alerts-cron\` servisining maxfiy qiymatini almashtiring; \`telegram-3x-daily-digests\` secret ayni qiymatga referens orqali ulangan.
