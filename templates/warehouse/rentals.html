@@ -21,6 +21,15 @@
     <input type="hidden" name="request_key" value="{{ request_key }}">
     <button type="submit">Oylik hisob chiqarish · {{ item.next_date|date:'d.m.Y' }}</button>
  </form>{% endif %}
+ {% if item.can_close %}
+ <details class="rental-settings"><summary>Ijara shartini yakunlash</summary>
+   <form method="post" data-confirm>{% csrf_token %}
+     <input type="hidden" name="action" value="close"><input type="hidden" name="agreement_id" value="{{ item.agreement.pk }}">
+     <label for="end-{{ item.agreement.pk }}">Tugash sanasi</label><input id="end-{{ item.agreement.pk }}" name="end_on" type="date" value="{{ today|date:'Y-m-d' }}" required>
+     <p class="help">Ombordagi ijaraga tegishli barcha yuklar chiqib bo‘lgan bo‘lishi kerak.</p>
+     <button class="secondary" type="submit">Ijarani yakunlash</button>
+   </form>
+ </details>{% endif %}
  {% if item.can_change %}
  <details class="rental-settings"><summary>Keyingi oy narxini o‘zgartirish</summary>
    <form method="post" data-confirm>{% csrf_token %}

@@ -222,6 +222,9 @@ def reverse_last(user,op_id,key,reason):
 
 @transaction.atomic
 def open_camera_rental(user,data):
+    # Keep lock order compatible with Camera.save(): organization before camera.
+    candidate=Camera.objects.get(pk=data['camera'].pk)
+    Organization.objects.select_for_update().get(pk=candidate.organization_id)
     cam=Camera.objects.select_for_update().get(pk=data['camera'].pk)
     authorize(user,cam.organization_id,cam.pk,'tariff')
     customer=Customer.objects.get(pk=data['customer'].pk)
@@ -233,7 +236,6 @@ def open_camera_rental(user,data):
     agreement.save()
     # One-click rental onboarding: make the zero-per-lot tariff available automatically.
     # Lock organization for safe idempotent tariff seed across different cameras.
-    Organization.objects.select_for_update().get(pk=cam.organization_id)
     if not Tariff.objects.filter(organization=cam.organization,service='rental',is_active=True).exists():
         Tariff.objects.create(organization=cam.organization,name='Butun kamera ijarasi',
             service='rental',basis='net',rate=ZERO,storage_mode='prorata',created_by=user)
@@ -283,3 +285,23 @@ def pay_camera_rental_invoice(user,invoice_id,request_key,amount,method,day):
     if method not in ['cash','bank','card']:raise ValidationError('To‘lov usuli noto‘g‘ri.')
     return CameraRentalPayment.objects.create(invoice=invoice,request_key=request_key,
         amount=amount,method=method,date=day,created_by=user)
+
+@transaction.atomic
+def close_camera_rental(user,agreement_id,last_day):
+    """End an indefinite rental only after every associated lot has departed."""
+    agreement=CameraRentalAgreement.objects.select_for_update().select_related('camera').get(pk=agreement_id)
+    authorize(user,agreement.camera.organization_id,agreement.camera_id,'tariff')
+    if agreement.end_on is not None:
+        raise ValidationError('Ijara shartining tugash sanasi avval belgilangan.')
+    if last_day<agreement.start_on or last_day>timezone.localdate():
+        raise ValidationError('Tugash sanasi ijara boshlanishidan oldin yoki kelajakda bo‘la olmaydi.')
+    if Lot.objects.filter(rental_agreement=agreement,closed_on__isnull=True).exists():
+        raise ValidationError('Ijarani yakunlashdan oldin kamera ichidagi barcha yuklarni chiqaring.')
+    if agreement.invoices.filter(period_start__gt=last_day).exists():
+        raise ValidationError('Tugash sanasi avval chiqarilgan hisob davridan oldin bo‘lishi mumkin emas.')
+    last_movement=Operation.objects.filter(lot__rental_agreement=agreement).order_by('-date').first()
+    if last_movement and last_movement.date>last_day:
+        raise ValidationError('Tugash sanasi oxirgi yuk harakatidan oldin bo‘lishi mumkin emas.')
+    agreement.end_on=last_day
+    agreement.save(update_fields=['end_on'])
+    return agreement

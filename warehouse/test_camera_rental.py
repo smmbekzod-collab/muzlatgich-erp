@@ -9,7 +9,7 @@ from django.test import TestCase, override_settings
 from core.models import Organization, Camera, Membership
 from warehouse.models import (Customer, Tariff, CameraRentalAgreement, CameraRentalInvoice, Lot)
 from warehouse.services import (open_camera_rental, issue_camera_rental_invoice,
-    pay_camera_rental_invoice, change_camera_rental_rate, receive, quote, pending)
+    pay_camera_rental_invoice, change_camera_rental_rate, close_camera_rental, receive, quote, pending)
 
 @override_settings(STORAGES={'default':{'BACKEND':'django.core.files.storage.FileSystemStorage'},
                             'staticfiles':{'BACKEND':'django.contrib.staticfiles.storage.StaticFilesStorage'}})
@@ -139,6 +139,22 @@ class CameraRentalTests(TestCase):
         csv=self.client.get('/app/report/?export=csv')
         self.assertContains(csv,'KAMERA IJARASI HISOBLARI')
         self.assertIn('20000000',csv.content.decode())
+
+    def test_cannot_close_contract_with_goods_inside(self):
+        agreement=self.agreement()
+        receive(self.admin,self.lot_data())
+        with self.assertRaises(ValidationError):
+            close_camera_rental(self.admin,agreement.pk,date(2026,10,10))
+        agreement.refresh_from_db()
+        self.assertIsNone(agreement.end_on)
+
+    def test_close_empty_contract_and_allow_next_renter(self):
+        agreement=self.agreement()
+        close_camera_rental(self.admin,agreement.pk,date(2026,10,10))
+        self.assertEqual(agreement.end_on,date(2026,10,10))
+        newer=open_camera_rental(self.admin,{'camera':self.cam,'customer':self.customer,
+            'start_on':date(2026,10,11),'monthly_rate':D('22000000'),'end_on':None})
+        self.assertNotEqual(newer.pk,agreement.pk)
 
     def test_rental_page_and_invoice_printable(self):
         self.agreement()

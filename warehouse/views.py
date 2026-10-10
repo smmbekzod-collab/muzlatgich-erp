@@ -318,7 +318,7 @@ def rentals(request):
     from .models import CameraRentalAgreement
     from .forms import CameraRentalForm
     from .services import (open_camera_rental,issue_camera_rental_invoice,
-        pay_camera_rental_invoice,change_camera_rental_rate,next_camera_rental_month)
+        pay_camera_rental_invoice,change_camera_rental_rate,next_camera_rental_month,close_camera_rental)
     permitted=[]
     for camera in access.cameras(request.user).filter(organization__is_active=True):
         if any(allowed_camera_permission(request.user,camera,perm) for perm in ['tariff','payment','finance']):
@@ -346,6 +346,11 @@ def rentals(request):
                     Decimal(request.POST.get('amount','')),request.POST.get('method',''),timezone.localdate())
                 messages.success(request,'Ijara to‘lovi qayd etildi.')
                 return redirect('rental_invoice',pk=p.invoice_id)
+            elif action=='close':
+                close_camera_rental(request.user,int(request.POST.get('agreement_id','')),
+                    date.fromisoformat(request.POST.get('end_on','')))
+                messages.success(request,'Ijara sharti yopildi. Oldingi hisoblar saqlanadi.')
+                return redirect('rentals')
             elif action=='rate':
                 change_camera_rental_rate(request.user,int(request.POST.get('agreement_id','')),
                     Decimal(request.POST.get('monthly_rate','')),date.fromisoformat(request.POST.get('effective_from','')))
@@ -362,6 +367,8 @@ def rentals(request):
         in_term=not agreement.end_on or next_date<=agreement.end_on
         rows.append({'agreement':agreement,'invoices':list(agreement.invoices.all()),
            'next_date':next_date,'can_tariff':can_tariff,'can_payment':can_payment,
+           'can_close':can_tariff and agreement.end_on is None and
+                        not agreement.lots.filter(closed_on__isnull=True).exists(),
            'can_bill':can_tariff and in_term and next_date<=timezone.localdate(),
            'can_change':can_tariff and in_term and next_date>=timezone.localdate() and
                          not agreement.rate_changes.filter(effective_from=next_date).exists()})
