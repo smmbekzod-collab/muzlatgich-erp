@@ -23,8 +23,40 @@ class Organization(models.Model):
             self.full_clean()
             return super().save(*args,**kwargs)
 
+
+class Facility(models.Model):
+    """One physical branch / cold-storage warehouse within an organization."""
+    organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name='facilities', verbose_name='Tashkilot')
+    code = models.SlugField('Filial kodi', max_length=80)
+    name = models.CharField('Filial / ombor nomi', max_length=160)
+    region = models.CharField('Viloyat', max_length=120, blank=True)
+    district = models.CharField('Tuman / shahar', max_length=120, blank=True)
+    address = models.CharField('Manzil', max_length=250, blank=True)
+    is_active = models.BooleanField('Faol', default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Filial / ombor'
+        verbose_name_plural = 'Filiallar / omborlar'
+        ordering = ['organization_id', 'name']
+        constraints = [models.UniqueConstraint(fields=['organization', 'code'], name='unique_facility_code_per_org')]
+
+    def __str__(self):
+        return f'{self.organization.name} / {self.name}'
+
+    def clean(self):
+        if self.pk and Facility.objects.get(pk=self.pk).organization_id != self.organization_id:
+            raise ValidationError({'organization': 'Filialni boshqa tashkilotga ko‘chirish mumkin emas.'})
+
+    def save(self, *args, **kwargs):
+        with transaction.atomic():
+            Organization.objects.select_for_update().get(pk=self.organization_id)
+            self.full_clean()
+            return super().save(*args, **kwargs)
+
 class Camera(models.Model):
     organization = models.ForeignKey(Organization,on_delete=models.PROTECT,related_name='cameras',verbose_name='Tashkilot')
+    facility = models.ForeignKey(Facility, on_delete=models.PROTECT, related_name='cameras', verbose_name='Filial / ombor', null=True, blank=True)
     number = models.PositiveIntegerField('Kamera raqami',validators=[MinValueValidator(1)])
     name = models.CharField('Nomi',max_length=100,blank=True)
     capacity_kg = models.DecimalField('Sig‘imi, kg',max_digits=12,decimal_places=2,null=True,blank=True,validators=[MinValueValidator(0)])
@@ -32,13 +64,19 @@ class Camera(models.Model):
     class Meta:
         verbose_name = 'Muzlatgich kamerasi'
         verbose_name_plural = 'Muzlatgich kameralari'
-        ordering = ['organization_id','number']
+        ordering = ['organization_id','facility_id','number']
         constraints = [models.UniqueConstraint(fields=['organization','number'],name='unique_camera_number_per_org')]
-    def __str__(self): return f'{self.organization} / {self.number}-kamera'
+    def __str__(self): return f'{self.facility.name if self.facility_id else self.organization.name} / {self.number}-kamera'
     def clean(self):
         if not self.organization_id:return
+        if self.facility_id and not Facility.objects.filter(pk=self.facility_id, organization_id=self.organization_id).exists():
+            raise ValidationError({'facility':'Filial va kamera bir tashkilotga tegishli bo‘lishi kerak.'})
         if self.pk:
             old = Camera.objects.get(pk=self.pk)
+            if old.facility_id != self.facility_id:
+                from warehouse.models import Lot
+                if Lot.objects.filter(camera_id=self.pk).exists():
+                    raise ValidationError({'facility':'Harakatlar tarixi bor kameraning filialini o‘zgartirib bo‘lmaydi.'})
             if old.organization_id != self.organization_id:
                 raise ValidationError({'organization':'Kamerani boshqa tashkilotga ko‘chirish mumkin emas.'})
             if not self.is_active:
@@ -50,6 +88,9 @@ class Camera(models.Model):
     def save(self,*args,**kwargs):
         with transaction.atomic():
             self.organization = Organization.objects.select_for_update().get(pk=self.organization_id)
+            if not self.facility_id:
+                self.facility, _ = Facility.objects.get_or_create(
+                    organization=self.organization, code='main', defaults={'name':'Asosiy ombor'})
             self.full_clean()
             return super().save(*args,**kwargs)
 
@@ -59,6 +100,8 @@ class Membership(models.Model):
     role = models.CharField('Lavozim',max_length=20,choices=[('admin','Tashkilot admini'),('keeper','Omborchi'),('accountant','Buxgalter'),('director','Rahbar')],default='admin')
     is_active = models.BooleanField('Ruxsat faol',default=True)
     all_cameras = models.BooleanField('Barcha kameralar (kelgusida qo‘shiladiganlar ham)',default=False)
+    all_facilities = models.BooleanField('Barcha filiallar', default=True)
+    facilities = models.ManyToManyField(Facility, blank=True, verbose_name='Ruxsat berilgan filiallar')
     cameras = models.ManyToManyField(Camera,blank=True,verbose_name='Ruxsat berilgan kameralar')
     can_receive = models.BooleanField('Yuk qabul qilish',default=False)
     can_dispatch = models.BooleanField('Yuk chiqarish',default=False)
