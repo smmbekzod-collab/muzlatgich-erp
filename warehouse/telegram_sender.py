@@ -8,6 +8,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from .models import CameraEnvironmentAlert,TelegramAlertDestination
+from .notification_controls import is_enabled
 
 
 def send_message(token,chat_id,text):
@@ -50,10 +51,12 @@ def make_message(alert):
 def drain_alerts(limit=30,now=None):
     now=now or timezone.now()
     token=os.environ.get('TELEGRAM_BOT_TOKEN','').strip()
-    if not token:
+    if not token or not is_enabled('alerts'):
         return {'sent':0,'failed':0,'skipped':True}
     sent=failed=0
     for _ in range(min(limit,100)):
+        if not is_enabled('alerts'):
+            break
         with transaction.atomic():
             chosen=(CameraEnvironmentAlert.objects.select_for_update(skip_locked=True)
                 .filter(resolved_at__isnull=True,camera__is_active=True,camera__organization__is_active=True)
@@ -79,6 +82,11 @@ def drain_alerts(limit=30,now=None):
                 camera__is_active=True,camera__organization__is_active=True).exists():
             CameraEnvironmentAlert.objects.filter(pk=pk,delivery_status='sending').update(
                 delivery_status='disabled',claimed_at=None,last_error='Hodisa yakunlangan')
+            continue
+        if not is_enabled('alerts'):
+            CameraEnvironmentAlert.objects.filter(pk=pk,delivery_status='sending').update(
+                delivery_status='disabled',claimed_at=None,
+                last_error='Super Admin ogohlantirishlarni vaqtincha to‘xtatdi')
             continue
         try:
             send_message(token,channel.chat_id,make_message(chosen))

@@ -370,3 +370,20 @@ class DailyTelegramDigest(models.Model):
 
     def __str__(self):
         return f'{self.organization} · {self.report_date} / {self.slot_hour:02d}:00'
+
+
+
+class PlatformNotificationControl(models.Model):
+    """Single platform-wide kill switch, independent of per-tenant destinations."""
+    id=models.PositiveSmallIntegerField(primary_key=True,default=1,editable=False)
+    reports_enabled=models.BooleanField('08:00 / 14:00 / 20:00 hisobotlar',default=True)
+    alerts_enabled=models.BooleanField('Kamera ogohlantirishlari',default=True)
+    updated_at=models.DateTimeField(auto_now=True)
+    updated_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT,
+        null=True,blank=True,related_name='+')
+
+    class Meta:
+        constraints=[
+            models.CheckConstraint(condition=Q(id=1),name='platform_notification_singleton')
+        ]
+    def __str__(self):return 'Telegram yuborish umumiy nazorati'

@@ -3,11 +3,15 @@ from django.core.management.base import BaseCommand,CommandError
 from django.utils import timezone
 from zoneinfo import ZoneInfo
 from warehouse.daily_digests import SLOTS,enqueue_slot,drain_digests
+from warehouse.notification_controls import is_enabled
 
 
 class Command(BaseCommand):
     help='Har kuni 08:00, 14:00 va 20:00 da har tashkilotga alohida Telegram hisobot.'
     def handle(self,*args,**options):
+        if not is_enabled('reports'):
+            self.stdout.write('REPORTS PAUSED: jadval rejalashtirilgan, ammo hisobotlar o‘chiq')
+            return
         local=timezone.localtime(timezone.now(),ZoneInfo('Asia/Tashkent'))
         if local.hour not in SLOTS:
             raise CommandError('Hozir rejalashtirilgan mahalliy hisobot soati emas')

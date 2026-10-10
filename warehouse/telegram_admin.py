@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from core.models import Organization
 from .models import TelegramAlertDestination,CameraEnvironmentAlert,DailyTelegramDigest
+from .notification_controls import current_controls,set_enabled
 
 
 class TelegramDestinationForm(forms.Form):
@@ -45,6 +46,15 @@ class TelegramDestinationForm(forms.Form):
 def telegram_destinations(request):
     if not request.user.is_active or not request.user.is_superuser:
         raise PermissionDenied('Telegram manzillarini faqat platforma Super Admini o‘zgartiradi.')
+    action=request.POST.get('action','') if request.method=='POST' else ''
+    if action in ('pause_reports','resume_reports','pause_alerts','resume_alerts'):
+        kind='reports' if action.endswith('reports') else 'alerts'
+        value=action.startswith('resume')
+        set_enabled(kind,value,request.user)
+        messages.success(request,
+            f'{"Uch mahal hisobotlar" if kind=="reports" else "Kamera ogohlantirishlari"} '
+            f'{"yoqildi" if value else "vaqtincha to‘xtatildi"}.')
+        return redirect('telegram_destinations')
     form=TelegramDestinationForm(request.POST if request.method=='POST' else None)
     if request.method=='POST' and form.is_valid():
         data=form.cleaned_data
@@ -79,6 +89,7 @@ def telegram_destinations(request):
         'organization','updated_by').order_by('organization__name')[:150])
     return render(request,'warehouse/telegram_admin.html',{
         'today':timezone.localdate(),'form':form,'destinations':destinations,
+        'notification_controls':current_controls(),
         'bot_ready':bool(os.environ.get('TELEGRAM_BOT_TOKEN','').strip() or
                          os.environ.get('TELEGRAM_BOT_CONFIGURED','') == '1'),
         'configured_count':TelegramAlertDestination.objects.filter(enabled=True).count(),

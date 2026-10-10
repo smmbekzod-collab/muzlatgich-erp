@@ -20,6 +20,7 @@ from .models import (
 )
 from core.models import Organization
 from .telegram_sender import send_message
+from .notification_controls import is_enabled
 
 UZ_TZ=ZoneInfo('Asia/Tashkent')
 SLOTS=(8,14,20)
@@ -130,6 +131,8 @@ def enqueue_slot(slot_hour, now=None, organization_code=None):
     """Only insert for enabled, active routes; no duplicate org/date/slot."""
     now=now or timezone.now()
     local=local_stamp(now)
+    if not is_enabled('reports'):
+        return 0
     if slot_hour not in SLOTS:
         raise ValueError('Noto‘g‘ri hisobot vaqti')
     if local.hour != slot_hour:
@@ -159,11 +162,13 @@ def drain_digests(limit=100,now=None,token=None):
     """Same bot serves many chats. Unique route per chat prevents tenant mixing."""
     now=now or timezone.now()
     token=token if token is not None else os.environ.get('TELEGRAM_BOT_TOKEN','').strip()
-    if not token:
+    if not token or not is_enabled('reports'):
         return {'sent':0,'failed':0,'skipped':True}
     sent=failed=0
     from django.db.models import Q
     for _ in range(max(0,min(limit,500))):
+        if not is_enabled('reports'):
+            break
         with transaction.atomic():
             digest=(DailyTelegramDigest.objects.select_for_update(skip_locked=True)
                 .filter(organization__is_active=True,attempts__lt=5)
@@ -182,6 +187,10 @@ def drain_digests(limit=100,now=None,token=None):
         if not route:
             DailyTelegramDigest.objects.filter(pk=digest.pk,delivery_status='sending').update(
                 delivery_status='disabled',claimed_at=None,last_error='Yo‘nalish o‘zgargan yoki o‘chirilgan')
+            continue
+        if not is_enabled('reports'):
+            DailyTelegramDigest.objects.filter(pk=digest.pk,delivery_status='sending').update(
+                delivery_status='disabled',claimed_at=None,last_error='Hisobotlar vaqtincha to‘xtatilgan')
             continue
         try:
             send_message(token,digest.chat_id,digest.message)
