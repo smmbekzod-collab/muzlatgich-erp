@@ -218,3 +218,42 @@ button:focus-visible,.button:focus-visible,a:focus-visible { outline:3px solid #
 @media(max-width:1200px){.setup-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.setup-form-grid{grid-template-columns:1fr}.setup-next{display:block}.setup-next-actions{margin-top:15px}.setup-steps a{font-size:11px;padding:9px;gap:6px}.setup-steps span{width:23px;height:23px}.setup-stats{gap:8px}.setup-stat{padding:12px}.setup-stat strong{font-size:25px}.setup-next-actions a{flex:1;text-align:center}.setup-search div{display:grid;grid-template-columns:minmax(0,1fr) auto}.setup-search button{padding:10px}.setup-card{padding:18px}.setup-directory-grid{grid-template-columns:1fr}}
 @media print{.setup-form,.setup-next-actions,.setup-search,.setup-steps{display:none!important}.setup-form-grid{display:block}}
+
+
+/* Staff/role onboarding */
+.staff-help{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:20px 0}
+.staff-help>div{padding:14px 16px;border:1px solid #d8e7dd;background:#eff7f2;border-radius:13px}
+.staff-help strong{display:flex;align-items:center;gap:9px;font-size:13px}
+.staff-help strong span{display:grid;place-items:center;border-radius:99px;background:#167053;color:white;width:25px;height:25px}
+.staff-help small{display:block;font-size:11px;color:#657b6b;margin:4px 0 0 34px}
+.staff-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.75fr);gap:18px;align-items:start;margin:20px 0 30px}
+.staff-create{padding:24px;max-width:none}
+.staff-create .field{min-width:0}
+.staff-create .setup-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.staff-create .setup-form .field:first-of-type,.staff-create .staff-security,.staff-create .setup-form>button,.staff-create .setup-form>.errorlist{grid-column:1/-1}
+.staff-create .setup-form>button{width:100%;min-height:53px}
+.staff-guidance{background:white;border:1px solid #dce9e1;border-radius:17px;padding:23px}
+.staff-role{border-top:1px solid #e6eee8;display:grid;gap:6px;padding:15px 0}
+.staff-role strong{font-size:14px}
+.staff-role span{font-size:12px;color:#597064}
+.staff-security{background:#edf6ee;color:#285a43;border:1px solid #d7e8db;border-radius:11px;padding:14px}
+.staff-security strong{font-size:13px}
+.staff-security p{font-size:12px;line-height:1.6;margin:5px 0 0}
+.staff-filter{max-width:570px;display:grid;gap:8px;margin:14px 0 18px}
+.staff-filter label{font-weight:700;font-size:12px;color:#5c7668}
+.staff-filter>div{display:flex;gap:9px}
+.staff-filter select{flex:1}
+.staff-filter button{flex:none}
+.staff-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:13px}
+.staff-card{padding:17px;background:white;border:1px solid #dae7de;border-radius:15px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.staff-card-head{display:flex;justify-content:space-between;gap:7px}
+.staff-card-head strong{font-size:14px;overflow-wrap:anywhere}
+.staff-card-head small{display:block;margin-top:4px;color:#698376;overflow-wrap:anywhere;font-size:11px}
+.staff-meta{display:flex;gap:6px;flex-wrap:wrap}
+.staff-meta span{background:#f0f5f1;border-radius:6px;padding:5px 8px;font-size:11px;color:#496854}
+.staff-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:auto;flex-wrap:wrap}
+.staff-actions>a{font-size:12px;font-weight:700}
+.staff-toggle{margin:0}
+.staff-toggle button{font-size:12px;min-height:40px;padding:9px 12px}
+@media(max-width:940px){.staff-grid{grid-template-columns:1fr}.staff-guidance{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.staff-guidance h2,.staff-guidance .staff-security{grid-column:1/-1}.staff-role{padding:8px}}
+@media(max-width:600px){.staff-help{gap:6px}.staff-help>div{padding:10px 8px}.staff-help strong{font-size:10px;gap:4px}.staff-help strong span{width:20px;height:20px}.staff-help small{display:none}.staff-create{padding:17px}.staff-create .setup-form{grid-template-columns:1fr;gap:13px}.staff-guidance{grid-template-columns:1fr;padding:17px}.staff-guidance h2,.staff-guidance .staff-security{grid-column:auto}.staff-cards{grid-template-columns:1fr}.staff-filter>div{display:grid;grid-template-columns:minmax(0,1fr) auto}}
