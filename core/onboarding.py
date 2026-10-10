@@ -13,7 +13,8 @@ from django.utils import timezone
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
-from .models import Organization, Facility, Camera
+from .models import Organization, Facility, Camera, Membership
+from warehouse.models import Customer, Tariff, CameraEnvironmentPolicy, CameraEnvironmentReading
 from .onboarding_forms import OrganizationSetupForm, FacilitySetupForm, CameraSetupForm
 
 
@@ -88,7 +89,31 @@ def platform_dashboard(request):
         ).order_by('-created_at')[:40]
     )
 
+    # First-run checklist is a guide, not a certification that every tenant is ready.
+    first_run_steps = [
+        {'label':'Tashkilotni ro‘yxatga olish','ready':Organization.objects.exists(),
+         'url_name':'platform_dashboard','anchor':'organizations'},
+        {'label':'Filialni yaratish','ready':Facility.objects.exists(),
+         'url_name':'platform_dashboard','anchor':'facilities'},
+        {'label':'Kamera va uning sig‘imini belgilash','ready':Camera.objects.exists(),
+         'url_name':'platform_dashboard','anchor':'cameras'},
+        {'label':'Xodimga login va huquq berish','ready':Membership.objects.filter(is_active=True).exists(),
+         'url_name':'staff_dashboard','anchor':''},
+        {'label':'Narx tarifini belgilash','ready':Tariff.objects.filter(is_active=True).exists(),
+         'url_name':'tariffs','anchor':''},
+        {'label':'Mijozni ro‘yxatga olish','ready':Customer.objects.exists(),
+         'url_name':'customers','anchor':''},
+        {'label':'Kamera me’yorlarini kiritish','ready':CameraEnvironmentPolicy.objects.exists(),
+         'url_name':'monitor_overview','anchor':''},
+        {'label':'Birinchi o‘lchovni qayd etish','ready':CameraEnvironmentReading.objects.exists(),
+         'url_name':'monitor_overview','anchor':''},
+    ]
+    first_run_completed=sum(step['ready'] for step in first_run_steps)
     return render(request, 'warehouse/platform_dashboard.html', {
+        'setup_steps':first_run_steps,
+        'setup_completed':first_run_completed,
+        'setup_total':len(first_run_steps),
+        'setup_percent':int(first_run_completed*100/len(first_run_steps)),
         'today': timezone.localdate(),
         'organization_form': org_form,
         'facility_form': branch_form,

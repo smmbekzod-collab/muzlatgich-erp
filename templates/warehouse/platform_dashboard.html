@@ -17,6 +17,29 @@
   <div class="setup-stat"><span>Filiallar</span><strong>{{ total_facilities }}</strong></div>
   <div class="setup-stat"><span>Kameralar</span><strong>{{ total_cameras }}</strong></div>
 </div>
+<section class="setup-readiness" aria-labelledby="setup-readiness-title">
+  <div class="setup-readiness-top">
+    <div><span class="eyebrow">BIRINCHI ISHGA TUSHIRISH YO‘RIQNOMASI</span>
+      <h2 id="setup-readiness-title">Dastlabki sozlash</h2>
+      <p class="muted">Ma’lumotlar mavjudligiga qarab yangilanadi. Har bir tashkilot bo‘yicha alohida qabul sinovi baribir zarur.</p>
+    </div>
+    <strong>{{ setup_completed }} / {{ setup_total }} bosqich</strong>
+  </div>
+  <div class="setup-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ setup_percent }}" aria-label="Dastlabki sozlash jarayoni">
+    <span style="width:{{ setup_percent }}%"></span>
+  </div>
+  <div class="setup-readiness-grid">
+  {% for step in setup_steps %}
+    <a class="setup-readiness-step {% if step.ready %}is-complete{% endif %}"
+       href="{% url step.url_name %}{% if step.anchor %}#{{ step.anchor }}{% endif %}">
+      <span aria-hidden="true">{% if step.ready %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
+      <strong>{{ step.label }}</strong>
+      <small>{% if step.ready %}Mavjud{% else %}Boshlash →{% endif %}</small>
+    </a>
+  {% endfor %}
+  </div>
+  <p class="help">Bu jadval dastlabki sinov uchun. Rasmiy chek, zahira nusxa, haqiqiy Telegram yetkazilishi va mobil QR ishlashi bu yerda avtomatik tasdiqlanmaydi.</p>
+</section>
 <nav class="setup-steps" aria-label="Sozlash bosqichlari">
   <a href="#organizations"><span>1</span> Tashkilot</a>
   <a href="#facilities"><span>2</span> Filial</a>

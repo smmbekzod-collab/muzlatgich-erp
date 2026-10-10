@@ -349,3 +349,22 @@ button:focus-visible,.button:focus-visible,a:focus-visible { outline:3px solid #
 .telegram-route strong,.telegram-route small{display:block}.telegram-route small{font-size:12px;color:#6c8775;margin-top:3px}
 @media(max-width:860px){.telegram-layout{grid-template-columns:1fr}}
 @media(max-width:550px){.telegram-status-grid{grid-template-columns:1fr}.telegram-route{align-items:start}}
+
+/* Platform first-run setup progress; desktop/tablet/mobile */
+.setup-readiness{background:#fff;border:1px solid #d5e8dd;border-radius:17px;padding:22px;margin:23px 0;box-shadow:0 4px 18px rgba(22,76,49,.04)}
+.setup-readiness-top{display:flex;gap:20px;justify-content:space-between;align-items:start}
+.setup-readiness-top h2{margin:4px 0;font-size:20px}
+.setup-readiness-top p{font-size:12px;margin:0}
+.setup-readiness-top>strong{flex:none;color:#236d50;font-variant-numeric:tabular-nums;font-size:17px}
+.setup-progress{height:9px;width:100%;background:#e9f0e9;border-radius:8px;overflow:hidden;margin:18px 0}
+.setup-progress span{display:block;background:#2a906a;height:100%;border-radius:8px}
+.setup-readiness-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.setup-readiness-step{display:flex;gap:9px;align-items:center;border-radius:10px;padding:12px;border:1px solid #e0ebe2;background:#f8fbf8;text-decoration:none;color:#285243;min-width:0}
+.setup-readiness-step>span{display:grid;place-items:center;flex:none;width:27px;height:27px;border-radius:99px;background:#dce8df;color:#356b50;font-weight:760;font-size:12px}
+.setup-readiness-step>strong{font-size:12px;line-height:1.4;flex:1}
+.setup-readiness-step>small{font-size:11px;flex:none;color:#507863}
+.setup-readiness-step.is-complete{background:#ebf8ef;border-color:#c5e4d2}
+.setup-readiness-step.is-complete>span{background:#1d805c;color:#fff}
+.setup-readiness-step:hover{border-color:#71b18e;text-decoration:none}
+.setup-readiness>.help{font-size:11px;color:#768675;line-height:1.5;margin:14px 0 0}
+@media(max-width:600px){.setup-readiness{padding:15px}.setup-readiness-top{display:block}.setup-readiness-top>strong{display:block;margin-top:10px}.setup-readiness-grid{grid-template-columns:1fr}}

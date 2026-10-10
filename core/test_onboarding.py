@@ -57,6 +57,20 @@ class PlatformOnboardingTests(TestCase):
         self.assertEqual(self.post_org().status_code,403)
         self.assertEqual(Organization.objects.count(),0)
 
+
+    def test_first_run_checklist_never_creates_demo_data(self):
+        self.client.force_login(self.admin)
+        response=self.client.get(self.url)
+        self.assertEqual(response.context['setup_completed'],0)
+        self.assertEqual(response.context['setup_total'],8)
+        self.assertContains(response,'Dastlabki sozlash')
+        self.assertContains(response,'0 / 8 bosqich')
+        self.assertEqual(Organization.objects.count(),0)
+        self.organization()
+        response=self.client.get(self.url)
+        self.assertEqual(response.context['setup_completed'],1)
+        self.assertContains(response,'1 / 8 bosqich')
+
     def test_no_dummy_records_created_on_get(self):
         self.client.force_login(self.admin)
         res=self.client.get(self.url)
