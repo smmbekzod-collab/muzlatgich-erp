@@ -104,6 +104,7 @@ class Membership(models.Model):
     facilities = models.ManyToManyField(Facility, blank=True, verbose_name='Ruxsat berilgan filiallar')
     cameras = models.ManyToManyField(Camera,blank=True,verbose_name='Ruxsat berilgan kameralar')
     can_receive = models.BooleanField('Yuk qabul qilish',default=False)
+    can_monitor_environment = models.BooleanField('Harorat va namlik qayd etish',default=False)
     can_dispatch = models.BooleanField('Yuk chiqarish',default=False)
     can_transfer = models.BooleanField('Kameralararo ko‘chirish',default=False)
     can_take_payment = models.BooleanField('To‘lov olish',default=False)

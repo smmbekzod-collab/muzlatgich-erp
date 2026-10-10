@@ -3,7 +3,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from .models import Camera, Membership, Organization, Facility
 
-OPERATIONS = {'receive':'can_receive','dispatch':'can_dispatch','transfer':'can_transfer','payment':'can_take_payment','finance':'can_view_finance','tariff':'can_set_tariffs','debt_dispatch':'can_dispatch_on_debt','expense':'can_manage_expenses'}
+OPERATIONS = {'receive':'can_receive','dispatch':'can_dispatch','transfer':'can_transfer','payment':'can_take_payment','finance':'can_view_finance','tariff':'can_set_tariffs','debt_dispatch':'can_dispatch_on_debt','expense':'can_manage_expenses','environment':'can_monitor_environment'}
 def memberships(user):
     if not user.is_authenticated or not user.is_active:return Membership.objects.none()
     return Membership.objects.filter(user=user,is_active=True,organization__is_active=True)

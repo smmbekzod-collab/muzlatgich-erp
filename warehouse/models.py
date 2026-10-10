@@ -212,3 +212,77 @@ class CameraRentalPayment(models.Model):
     class Meta:
         ordering=['-created_at']
         constraints=[models.CheckConstraint(condition=Q(amount__gt=0),name='rental_payment_gt_zero')]
+
+
+class CameraEnvironmentPolicy(models.Model):
+    """Optional tenant-owned camera limits. No invented defaults for products."""
+    camera = models.OneToOneField(
+        Camera, on_delete=models.PROTECT, related_name='environment_policy')
+    min_temperature = models.DecimalField('Eng past harorat, °C', max_digits=6, decimal_places=2, null=True, blank=True)
+    max_temperature = models.DecimalField('Eng yuqori harorat, °C', max_digits=6, decimal_places=2, null=True, blank=True)
+    min_humidity = models.DecimalField('Eng past namlik, %', max_digits=5, decimal_places=2, null=True, blank=True)
+    max_humidity = models.DecimalField('Eng yuqori namlik, %', max_digits=5, decimal_places=2, null=True, blank=True)
+    check_interval_hours = models.PositiveSmallIntegerField('Tekshiruv oralig‘i, soat', default=12)
+    max_storage_days = models.PositiveSmallIntegerField(
+        'Saqlanish muddatini kuzatish, kun', null=True, blank=True,
+        help_text='Ogohlantirish chegarasi. Bu mahsulotning xavfsizligi haqidagi tibbiy yoki laboratoriya xulosasi emas.')
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+
+    def clean(self):
+        errors = {}
+        if self.min_temperature is not None and self.max_temperature is not None and self.min_temperature > self.max_temperature:
+            errors['max_temperature'] = 'Yuqori harorat chegarasi pastki chegaradan kichik bo‘la olmaydi.'
+        if self.min_humidity is not None and not 0 <= self.min_humidity <= 100:
+            errors['min_humidity'] = 'Namlik 0 dan 100 foizgacha bo‘lishi kerak.'
+        if self.max_humidity is not None and not 0 <= self.max_humidity <= 100:
+            errors['max_humidity'] = 'Namlik 0 dan 100 foizgacha bo‘lishi kerak.'
+        if self.min_humidity is not None and self.max_humidity is not None and self.min_humidity > self.max_humidity:
+            errors['max_humidity'] = 'Yuqori namlik chegarasi pastki chegaradan kichik bo‘la olmaydi.'
+        if not 1 <= self.check_interval_hours <= 168:
+            errors['check_interval_hours'] = 'Tekshiruv oralig‘i 1–168 soat bo‘lishi kerak.'
+        if self.max_storage_days is not None and not 1 <= self.max_storage_days <= 365:
+            errors['max_storage_days'] = 'Nazorat muddati 1–365 kun bo‘lishi kerak.'
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f'{self.camera} / iqlim nazorati'
+
+
+class CameraEnvironmentReading(models.Model):
+    """Immutable manually recorded measurements; IoT is NOT connected."""
+    camera = models.ForeignKey(Camera, on_delete=models.PROTECT, related_name='environment_readings')
+    measured_at = models.DateTimeField('O‘lchangan vaqt', db_index=True)
+    temperature = models.DecimalField('Harorat °C', max_digits=6, decimal_places=2)
+    humidity = models.DecimalField('Namlik %', max_digits=5, decimal_places=2)
+    note = models.CharField('Izoh', max_length=250, blank=True)
+    source = models.CharField('Manba', max_length=12, default='manual', choices=[('manual', 'Qo‘lda'), ('sensor', 'Datchik')])
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-measured_at', '-pk']
+        indexes = [models.Index(fields=['camera', '-measured_at'], name='env_camera_time_idx')]
+        constraints = [
+            models.CheckConstraint(condition=Q(temperature__gte=-80, temperature__lte=80), name='env_temperature_range'),
+            models.CheckConstraint(condition=Q(humidity__gte=0, humidity__lte=100), name='env_humidity_range'),
+        ]
+
+    def clean(self):
+        errors = {}
+        if self.temperature is not None and not -80 <= self.temperature <= 80:
+            errors['temperature'] = 'Harorat -80 dan +80 °C oralig‘ida bo‘lishi kerak.'
+        if self.humidity is not None and not 0 <= self.humidity <= 100:
+            errors['humidity'] = 'Namlik 0–100% oralig‘ida bo‘lishi kerak.'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError('O‘lchov jurnali o‘zgartirilmaydi. Yangi qayd kiriting.')
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.camera} / {self.measured_at:%Y-%m-%d %H:%M}'

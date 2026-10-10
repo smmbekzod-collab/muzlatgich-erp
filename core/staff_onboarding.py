@@ -17,14 +17,14 @@ from .staff_forms import StaffSetupForm
 # Rights are explicit; labels alone never authorize a backend operation.
 ROLE_RIGHTS = {
     'admin': ('can_receive', 'can_dispatch', 'can_transfer', 'can_take_payment',
-              'can_view_finance', 'can_set_tariffs', 'can_manage_expenses'),
-    'keeper': ('can_receive', 'can_dispatch', 'can_transfer'),
+              'can_view_finance', 'can_set_tariffs', 'can_manage_expenses', 'can_monitor_environment'),
+    'keeper': ('can_receive', 'can_dispatch', 'can_transfer', 'can_monitor_environment'),
     'accountant': ('can_take_payment', 'can_view_finance', 'can_manage_expenses'),
     'director': ('can_view_finance',),
 }
 ALL_RIGHTS = (
     'can_receive', 'can_dispatch', 'can_transfer', 'can_take_payment',
-    'can_view_finance', 'can_set_tariffs', 'can_dispatch_on_debt', 'can_manage_expenses'
+    'can_view_finance', 'can_set_tariffs', 'can_dispatch_on_debt', 'can_manage_expenses', 'can_monitor_environment'
 )
 
 

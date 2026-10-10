@@ -75,7 +75,7 @@ class MembershipAdmin(ScopedAdmin):
     list_filter = ['organization','role','is_active']
     search_fields = ['user__username','organization__name']
     filter_horizontal = ['facilities','cameras']
-    fieldsets = [('Kimga va qayerda',{'fields':('user','organization','role','is_active')}),('Kameralar',{'fields':('all_facilities','facilities','all_cameras','cameras')}),('Amallar',{'description':'Lavozimning o‘zi huquq bermaydi. Quyidagi huquqlar alohida tanlanadi. Kamera yaratish va huquq berish doimo super adminda.','fields':('can_receive','can_dispatch','can_transfer','can_take_payment','can_view_finance','can_set_tariffs','can_dispatch_on_debt','can_manage_expenses')})]
+    fieldsets = [('Kimga va qayerda',{'fields':('user','organization','role','is_active')}),('Kameralar',{'fields':('all_facilities','facilities','all_cameras','cameras')}),('Amallar',{'description':'Lavozimning o‘zi huquq bermaydi. Quyidagi huquqlar alohida tanlanadi. Kamera yaratish va huquq berish doimo super adminda.','fields':('can_receive','can_dispatch','can_transfer','can_take_payment','can_view_finance','can_set_tariffs','can_dispatch_on_debt','can_manage_expenses','can_monitor_environment')})]
     def get_queryset(self,request):
         if request.user.is_superuser:return Membership.objects.select_related('user','organization')
         return access.memberships(request.user)
