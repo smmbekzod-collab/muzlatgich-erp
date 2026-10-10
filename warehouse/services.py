@@ -6,7 +6,7 @@ from django.db.models import Sum,Q
 from django.core.exceptions import ValidationError,PermissionDenied
 from django.utils import timezone
 from core.access import authorize,cameras
-from core.models import Camera
+from core.models import Camera,Organization
 from .models import Lot,Operation,Tariff,Customer,CameraRentalAgreement,CameraRentalInvoice,CameraRentalPayment,CameraRentalRateChange
 
 ZERO=Decimal('0')
@@ -231,6 +231,12 @@ def open_camera_rental(user,data):
     agreement=CameraRentalAgreement(camera=cam,customer=customer,start_on=data['start_on'],
          end_on=data.get('end_on'),monthly_rate=data['monthly_rate'],created_by=user)
     agreement.save()
+    # One-click rental onboarding: make the zero-per-lot tariff available automatically.
+    # Lock organization for safe idempotent tariff seed across different cameras.
+    Organization.objects.select_for_update().get(pk=cam.organization_id)
+    if not Tariff.objects.filter(organization=cam.organization,service='rental',is_active=True).exists():
+        Tariff.objects.create(organization=cam.organization,name='Butun kamera ijarasi',
+            service='rental',basis='net',rate=ZERO,storage_mode='prorata',created_by=user)
     return agreement
 
 def next_camera_rental_month(agreement):

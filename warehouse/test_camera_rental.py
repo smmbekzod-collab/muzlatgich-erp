@@ -46,6 +46,7 @@ class CameraRentalTests(TestCase):
 
     def test_one_monthly_invoice_for_many_lots_and_no_duplicate_charge(self):
         agreement=self.agreement()
+        self.assertTrue(Tariff.objects.filter(organization=self.org,service='rental',is_active=True).exists())
         lot1=receive(self.admin,self.lot_data())
         lot2=receive(self.admin,self.lot_data())
         self.assertEqual(lot1.rental_agreement_id,agreement.pk)
