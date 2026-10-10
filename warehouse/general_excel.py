@@ -43,17 +43,17 @@ def _sheet(book, name, title, subtitle, headings, widths, data, money_cols=(), n
     return ws
 
 
-def general_excel(rows, debts, start, end):
+def general_excel(rows, debts, start, end, rent_invoices=(), rent_payments=()):
     output=BytesIO()
     book=xlsxwriter.Workbook(output, {'in_memory':True,'strings_to_formulas':False,'strings_to_urls':False})
     organization_rows=[]
     for r in rows:
         cam=r['camera']
-        organization_rows.append([cam.organization.name,cam.number,r['storage'],r['cooling'],r['paid'],r['expenses'],r['cash_net']])
+        organization_rows.append([cam.organization.name,cam.number,r['storage'],r['cooling'],r.get('rental_charges',0),r.get('lot_paid',r['paid']),r.get('rental_paid',0),r['paid'],r['expenses'],r['cash_net']])
     _sheet(book,'Kameralar hisoboti','MUZLATGICH ERP | UMUMIY MOLIYAVIY HISOBOT',
         f'Davr: {start:%d.%m.%Y} — {end:%d.%m.%Y}  |  Pul oqimi = tushum − xarajat (foyda emas)',
-        ['Tashkilot','Kamera','Saqlash hisobi (so‘m)','Sovutish hisobi (so‘m)','Tushum (so‘m)','Xarajat (so‘m)','Sof pul oqimi (so‘m)'],
-        [32,15,24,24,23,23,25],organization_rows,money_cols=(2,3,4,5,6))
+        ['Tashkilot','Kamera','Partiya saqlash (so‘m)','KG tarif (so‘m)','Kamera ijara hisobi','Yuk to‘lovlari','Ijara to‘lovlari','Jami tushum','Xarajat','Pul oqimi'],
+        [31,14,22,20,23,22,22,21,21,22],organization_rows,money_cols=(2,3,4,5,6,7,8,9))
     debt_rows=[]
     for r in debts:
         lot=r['lot']
@@ -62,6 +62,24 @@ def general_excel(rows, debts, start, end):
         f'Joriy holat: {timezone.localdate():%d.%m.%Y}  |  Ushbu varaqda yuqoridagi sana filtri qo‘llanmaydi',
         ['Partiya','Mijoz','Tashkilot','Kamera','Mahsulot','Nav','Qolgan yashik','Qolgan sof kg','Yozilgan hisob (so‘m)','To‘lov (so‘m)','Qarz (so‘m)','Avans (so‘m)','Yozilmagan xizmat (so‘m)','Taxminiy qarz (so‘m)'],
         [18,28,29,15,20,20,18,19,24,20,20,20,27,26],debt_rows,money_cols=(8,9,10,11,12,13),numeric_cols=(6,7))
+    rental_rows=[]
+    for inv in rent_invoices:
+        r=inv.agreement
+        rental_rows.append([r.camera.organization.name,r.camera.number,r.customer.name,
+                            inv.period_start,inv.period_end,inv.amount,inv.paid,inv.debt,inv.pk])
+    _sheet(book,'Kamera ijaralari','MUZLATGICH ERP | IJARA HISOBLARI',
+        'Ijara hisobi har bir kamera/oy uchun bitta; yuklar bo‘yicha takroriy haq emas',
+        ['Tashkilot','Kamera','Ijarachi','Davr boshi','Davr oxiri','Hisob','To‘lov','Qarz','Hisob ID'],
+        [30,14,29,16,16,21,21,21,17],rental_rows,money_cols=(5,6,7))
+    payment_rows=[]
+    for pay in rent_payments:
+        r=pay.invoice.agreement
+        payment_rows.append([r.camera.organization.name,r.camera.number,r.customer.name,
+                             pay.date,pay.invoice.period_start,pay.amount,pay.get_method_display()])
+    _sheet(book,'Ijara tolovlari','MUZLATGICH ERP | IJARA TO‘LOVLARI',
+        f'To‘lov davri: {start:%d.%m.%Y} — {end:%d.%m.%Y}',
+        ['Tashkilot','Kamera','Ijarachi','To‘lov sanasi','Ijara davri','To‘lov','Usul'],
+        [30,14,29,16,16,23,18],payment_rows,money_cols=(5,))
     book.close()
     response=HttpResponse(output.getvalue(),content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition']=f'attachment; filename="muzlatgich-erp-umumiy-hisobot-{start:%Y%m%d}-{end:%Y%m%d}.xlsx"'

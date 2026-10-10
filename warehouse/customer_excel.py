@@ -86,7 +86,7 @@ def customer_excel(request):
         dispatches=[x for x in history if x.kind=='dispatch' and x.pk not in reversed_ids]
         out_boxes=sum((x.boxes for x in dispatches),0)
         grand_charge+=charge;grand_paid+=paid;grand_due+=due;grand_advance+=adv;grand_boxes+=lot.boxes;grand_out+=out_boxes
-        party_rows.append([lot.short_id,lot.customer.name,lot.organization.name,lot.camera.number,lot.received_on,lot.closed_on or '',lot.product,lot.variety,lot.box_type,lot.initial_boxes,out_boxes,lot.boxes,lot.initial_gross-lot.initial_tare,lot.net,lot.tariff_name,lot.rate,charge,paid,due,adv,pending(lot),lot.note])
+        party_rows.append([lot.short_id,lot.customer.name,lot.organization.name,lot.camera.number,lot.received_on,lot.closed_on or '',lot.product,lot.variety,lot.box_type,lot.initial_boxes,out_boxes,lot.boxes,lot.initial_gross-lot.initial_tare,lot.net,lot.tariff_name,lot.rate_description,charge,paid,due,adv,pending(lot),lot.note])
         for x in history:
             activity_rows.append([lot.customer.name,lot.short_id,x.date,kinds.get(x.kind,x.kind),x.camera.number,x.target_camera.number if x.target_camera else '',x.boxes,x.gross,x.tare,x.net,x.boxes_after,x.charge,x.payment,x.payment_method,x.created_by.username,x.note,x.short_id,x.reversal_of.short_id if x.reversal_of_id else ''])
     data=BytesIO();book=xlsxwriter.Workbook(data,{'in_memory':True,'strings_to_formulas':False,'strings_to_urls':False})
@@ -102,7 +102,7 @@ def customer_excel(request):
         if isinstance(val,(int,float,Decimal)): summary.write_number(row,1,float(val),num)
         else: summary.write_string(row,1,excel_text(val),value)
     summary.merge_range('A17:F17','Izoh: Qarz va avans tasdiqlangan hujjatlar bo‘yicha. Hali yozilmagan xizmat Partiyalar varag‘ida alohida.',value)
-    write_table(detail,'PARTIYALAR VA JORIY QOLDIQ', ['Partiya','Mijoz','Tashkilot','Kamera','Kirim sanasi','Yopilgan sana','Mahsulot','Nav','Yashik turi','Kirim yashik','Chiqim yashik','Qolgan yashik','Kirim sof kg','Qolgan sof kg','Tarif','Narx (so‘m)','Hisob (so‘m)','To‘langan (so‘m)','Qarz (so‘m)','Avans (so‘m)','Yozilmagan xizmat (so‘m)','Izoh'],party_rows,[17,25,25,12,16,16,18,18,16,15,15,15,18,18,20,18,19,19,19,19,24,35],book,money_columns=(12,13,15,16,17,18,19,20),count_columns=(9,10,11))
+    write_table(detail,'PARTIYALAR VA JORIY QOLDIQ', ['Partiya','Mijoz','Tashkilot','Kamera','Kirim sanasi','Yopilgan sana','Mahsulot','Nav','Yashik turi','Kirim yashik','Chiqim yashik','Qolgan yashik','Kirim sof kg','Qolgan sof kg','Tarif','Narx / bosqichlar','Hisob (so‘m)','To‘langan (so‘m)','Qarz (so‘m)','Avans (so‘m)','Yozilmagan xizmat (so‘m)','Izoh'],party_rows,[17,25,25,12,16,16,18,18,16,15,15,15,18,18,20,48,19,19,19,19,24,35],book,money_columns=(12,13,15,16,17,18,19,20),count_columns=(9,10,11))
     write_table(moves,'YUK HARAKATLARI VA TO‘LOVLAR', ['Mijoz','Partiya','Sana','Amal','Kamera','Manzil kamera','Yashik','Brutto kg','Tara kg','Sof kg','Qoldiq yashik','Xizmat haqi (so‘m)','To‘lov (so‘m)','To‘lov usuli','Xodim','Izoh','Hujjat ID','Bekor hujjat ID'],activity_rows,[25,17,16,18,13,19,12,17,16,17,17,21,19,19,22,35,17,19],book,money_columns=(7,8,9,11,12),count_columns=(6,10))
     book.close();data.seek(0)
     response=HttpResponse(data.getvalue(),content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

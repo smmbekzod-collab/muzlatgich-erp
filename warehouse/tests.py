@@ -2,6 +2,7 @@ import uuid
 from decimal import Decimal as D
 from datetime import date,timedelta
 from unittest.mock import patch
+from html.parser import HTMLParser
 from django.test import TestCase,override_settings,Client
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied,ValidationError
@@ -125,8 +126,12 @@ class WorkflowTests(TestCase):
     def test_confirm_flow_http(self):
         d=self.out();d['date']=d['date'].isoformat();d['request_key']=str(d['request_key'])
         url=f'/app/lot/{self.lot.pk}/dispatch/'
-        self.assertContains(self.client.post(url,d),'Tasdiqlashdan oldin')
+        response=self.client.post(url,d)
+        self.assertContains(response,'Hisobni tekshiring')
         self.lot.refresh_from_db();self.assertEqual(self.lot.boxes,250)
+        import re, html
+        token=html.unescape(re.search(r'name="preview_token" value="([^"]+)"', response.content.decode()).group(1))
+        d['preview_token']=token
         d['confirm']='yes';response=self.client.post(url,d)
         self.assertEqual(response.status_code,302);self.lot.refresh_from_db();self.assertEqual(self.lot.boxes,150)
     def test_csrf_is_required(self):
@@ -163,6 +168,152 @@ class WorkflowTests(TestCase):
         op=act(self.u,self.lot.pk,'transfer',self.out(target_camera=self.c2))
         reverse_last(self.root,op.pk,uuid.uuid4(),'Xato')
         self.lot.refresh_from_db();self.assertEqual(self.lot.camera,self.c1)
+
+    def _dispatch_preview(self, data=None):
+        import re, html
+        d=data or self.out()
+        d={**d, 'date':d['date'].isoformat(), 'request_key':str(d['request_key'])}
+        response=self.client.post(f'/app/lot/{self.lot.pk}/dispatch/', d)
+        self.assertEqual(response.status_code,200)
+        match=re.search(r'name="preview_token" value="([^"]+)"',response.content.decode())
+        self.assertIsNotNone(match)
+        d['preview_token']=html.unescape(match.group(1))
+        return d
+
+    def test_dispatch_rejects_direct_confirmation_without_preview(self):
+        d=self.out()
+        d.update({'date':d['date'].isoformat(),'request_key':str(d['request_key']),'confirm':'yes'})
+        response=self.client.post(f'/app/lot/{self.lot.pk}/dispatch/',d)
+        self.assertContains(response,'Avval xizmat haqini hisoblab')
+        self.assertEqual(self.lot.operations.count(),1)
+
+    def test_dispatch_rejects_changed_inputs_after_preview(self):
+        d=self._dispatch_preview()
+        d['boxes']=80
+        d['confirm']='yes'
+        response=self.client.post(f'/app/lot/{self.lot.pk}/dispatch/',d)
+        self.assertContains(response,'Maydonlar o‘zgargan')
+        self.assertEqual(self.lot.operations.count(),1)
+
+    def test_dispatch_rejects_stale_preview_after_other_dispatch(self):
+        d=self._dispatch_preview()
+        # Another authorized checkout changes the lot, although the form itself is unchanged.
+        act(self.u,self.lot.pk,'dispatch',self.out())
+        d['confirm']='yes'
+        response=self.client.post(f'/app/lot/{self.lot.pk}/dispatch/',d)
+        self.assertContains(response,'qoldig‘i yoki hisob holati o‘zgargan')
+        self.assertEqual(self.lot.operations.filter(kind='dispatch').count(),1)
+
+    def test_dispatch_rejects_preview_from_different_user(self):
+        d=self._dispatch_preview()
+        other=get_user_model().objects.create_user('second_keeper',password='Long-Test-Password!',is_staff=True)
+        Membership.objects.create(user=other,organization=self.a,all_cameras=True,can_dispatch=True,can_take_payment=True)
+        self.client.force_login(other)
+        d['confirm']='yes'
+        response=self.client.post(f'/app/lot/{self.lot.pk}/dispatch/',d)
+        self.assertContains(response,'Tasdiqlash muddati tugagan yoki ma’lumot o‘zgargan' if False else 'Maydonlar o‘zgargan')
+        self.assertEqual(self.lot.operations.count(),1)
+
+    def test_scan_and_dispatch_mobile_controls_render(self):
+        scan=self.client.get('/app/scan/')
+        self.assertContains(scan,'manual-open')
+        r=self.client.get(f'/app/lot/{self.lot.pk}/dispatch/')
+        self.assertContains(r,'data-fill-all')
+        self.assertContains(r,'data-dispatch-form')
+        self.assertContains(r,'Hisobni ko‘rish')
+
+    def test_tiered_tariff_boundaries_and_total_price(self):
+        self.tariff.service='tiered'
+        self.tariff.tier_1_10=D('250')
+        self.tariff.tier_11_15=D('300')
+        self.tariff.tier_16_25=D('400')
+        self.tariff.tier_26_30=D('450')
+        self.tariff.tier_31_plus=D('450')
+        self.tariff.save()
+        lot=receive(self.u,self.intake_data(tariff=self.tariff))
+        for age,rate in [(1,250),(10,250),(11,300),(15,300),(16,400),
+                         (25,400),(26,450),(30,450),(31,450),(50,450)]:
+            with self.subTest(days=age):
+                lot.received_on=date(2026,8,1)
+                lot.last_stock_date=date(2026,8,1)
+                calculated=quote(lot,'dispatch',date(2026,8,1)+timedelta(days=age-1),
+                                 100,D('1100'),D('100'))
+                self.assertEqual(calculated['charge'], D(1000)*D(rate))
+                self.assertEqual(calculated['days'],age)
+
+    def test_tiered_snapshot_survives_price_change_and_partial_exit(self):
+        self.tariff.service='tiered'
+        for key,value in [('tier_1_10',250),('tier_11_15',300),('tier_16_25',400),
+                          ('tier_26_30',450),('tier_31_plus',450)]:
+            setattr(self.tariff,key,D(value))
+        self.tariff.save()
+        lot=receive(self.u,self.intake_data(tariff=self.tariff))
+        self.tariff.tier_11_15=D('900')
+        self.tariff.save()
+        day=date(2026,10,7)
+        self.assertEqual(quote(lot,'dispatch',day,100,D('1100'),D('100'))['charge'],D('250000'))
+        lot.received_on=date(2026,9,26)
+        lot.last_stock_date=date(2026,9,26)
+        self.assertEqual(quote(lot,'dispatch',day,100,D('1100'),D('100'))['charge'],D('300000'))
+
+    def test_tiered_receipt_shows_age_and_actual_rate(self):
+        self.tariff.service='tiered'
+        for field,value in [('tier_1_10',250),('tier_11_15',300),('tier_16_25',400),
+                            ('tier_26_30',450),('tier_31_plus',450)]:
+            setattr(self.tariff,field,D(value))
+        self.tariff.save()
+        lot=receive(self.u,self.intake_data(tariff=self.tariff,date=date(2026,9,26)))
+        operation=act(self.u,lot.pk,'dispatch',self.out(date=date(2026,10,7),payment=D('300000')))
+        self.assertEqual(operation.days,12)
+        self.assertEqual(operation.charge,D('300000'))
+        resp=self.client.get('/app/receipt/'+str(operation.pk)+'/')
+        self.assertContains(resp,'12 kun')
+        self.assertContains(resp,'300 so‘m/kg')
+
+    def test_tiered_form_requires_all_prices_and_no_cross_org_tariff(self):
+        from .forms import TariffForm
+        d={'camera':self.c1.pk,'name':'Yangi', 'service':'tiered','basis':'net',
+           'tier_1_10':'250','tier_11_15':'300','tier_16_25':'400',
+           'tier_26_30':'450','tier_31_plus':'450','storage_mode':'prorata'}
+        form=TariffForm(self.u,data=d)
+        self.assertTrue(form.is_valid(),form.errors)
+        self.assertEqual(form.cleaned_data['rate'],D('250'))
+        del d['tier_31_plus']
+        form=TariffForm(self.u,data=d)
+        self.assertFalse(form.is_valid())
+        self.assertIn('tier_31_plus',form.errors)
+        d['camera']=self.cb.pk
+        self.assertFalse(TariffForm(self.u,data=d).is_valid())
+
+    def test_admin_can_replace_tariff_without_repricing_existing_lot(self):
+        self.client.force_login(self.u)
+        url='/app/tariffs/'
+        current=self.tariff
+        d={'camera':str(self.c1.pk),'name':'Yangilangan','service':'tiered','basis':'net',
+           'tier_1_10':'260','tier_11_15':'350','tier_16_25':'420',
+           'tier_26_30':'460','tier_31_plus':'470','storage_mode':'prorata',
+           'replace_tariff':str(current.pk)}
+        response=self.client.post(url,d)
+        self.assertEqual(response.status_code,302)
+        current.refresh_from_db()
+        self.assertFalse(current.is_active)
+        self.lot.refresh_from_db()
+        self.assertEqual(self.lot.rate,D('300'))
+        new=Tariff.objects.get(name='Yangilangan')
+        self.assertEqual(new.organization_id,self.a.pk)
+        self.assertEqual(new.tier_1_10,D('260'))
+
+    def test_admin_cannot_replace_foreign_tenant_tariff(self):
+        other=Tariff.objects.create(organization=self.b,name='Boshqa',service='cooling',rate=333,created_by=self.root)
+        self.client.force_login(self.u)
+        d={'camera':str(self.c1.pk),'name':'Yangi','service':'cooling','basis':'net',
+           'rate':'500','storage_mode':'prorata','replace_tariff':str(other.pk)}
+        response=self.client.post('/app/tariffs/',d)
+        self.assertEqual(response.status_code,200)
+        self.assertContains(response,'boshqa tashkilotga tegishli')
+        other.refresh_from_db()
+        self.assertTrue(other.is_active)
+        self.assertFalse(Tariff.objects.filter(name='Yangi').exists())
     def test_login_throttle(self):
         self.client.logout()
         for i in range(5):self.assertEqual(self.client.post('/admin/login/',{'username':'keeper','password':'incorrect'}).status_code,200)

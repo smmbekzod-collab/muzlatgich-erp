@@ -2,14 +2,29 @@ import calendar
 from datetime import date,timedelta
 from decimal import Decimal,ROUND_HALF_UP
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Sum,Q
 from django.core.exceptions import ValidationError,PermissionDenied
 from django.utils import timezone
 from core.access import authorize,cameras
-from core.models import Camera
-from .models import Lot,Operation,Tariff,Customer
+from core.models import Camera,Organization
+from .models import Lot,Operation,Tariff,Customer,CameraRentalAgreement,CameraRentalInvoice,CameraRentalPayment,CameraRentalRateChange
 
 ZERO=Decimal('0')
+TIER_FIELDS=('tier_1_10','tier_11_15','tier_16_25','tier_26_30','tier_31_plus')
+
+def tiered_rate(lot, days):
+    """Full one-time per-kg price based on total age, not an accumulating daily fee."""
+    age = max(1,days)
+    field = ('tier_1_10' if age<=10 else 'tier_11_15' if age<=15 else
+             'tier_16_25' if age<=25 else 'tier_26_30' if age<=30 else 'tier_31_plus')
+    rate=getattr(lot,field)
+    if rate is None:
+        raise ValidationError('Muddatga ko‘ra tarifning barcha bosqichlari belgilanishi kerak.')
+    return rate
+
+def tiered_days(start, on):
+    return max(1,(on-start).days+1)
+
 def money(value):return Decimal(value).quantize(Decimal('1'),rounding=ROUND_HALF_UP)
 def date_check(day,start):
     if day<start:raise ValidationError('Sana oldingi harakat yoki kirim sanasidan oldin bo‘lishi mumkin emas.')
@@ -35,10 +50,26 @@ def totals(lot):
     sums=lot.operations.aggregate(charged=Sum('charge'),paid=Sum('payment'))
     charged=sums['charged'] or ZERO;paid=sums['paid'] or ZERO
     return {'charged':charged,'paid':paid,'debt':max(ZERO,charged-paid),'advance':max(ZERO,paid-charged)}
+def dispatch_snapshot(lot):
+    """Signed preview inputs that must still hold while the lot is locked."""
+    balance = totals(lot)
+    return {
+        'camera':lot.camera_id, 'boxes':lot.boxes,
+        'gross':str(lot.gross), 'tare':str(lot.tare),
+        'storage_billed':str(lot.storage_billed),
+        'closed_on':lot.closed_on.isoformat() if lot.closed_on else None,
+        'last_stock_date':lot.last_stock_date.isoformat(),
+        'charged':str(balance['charged']), 'paid':str(balance['paid']),
+    }
+
 def pending(lot,as_of=None):
     as_of=as_of or timezone.localdate()
     if lot.closed_on or as_of<lot.received_on:return ZERO
     if lot.service=='storage':return max(ZERO,storage_total(lot,as_of)-lot.storage_billed)
+    if lot.service=='rental':return ZERO
+    if lot.service=='tiered':
+        kg=lot.gross if lot.basis=='gross' else lot.net
+        return money(kg*tiered_rate(lot,tiered_days(lot.received_on,as_of)))
     kg=lot.gross if lot.basis=='gross' else lot.net
     return money(kg*lot.rate*((as_of-lot.received_on).days+1))
 def quote(lot,kind,day,boxes=0,gross=ZERO,tare=ZERO):
@@ -55,7 +86,17 @@ def quote(lot,kind,day,boxes=0,gross=ZERO,tare=ZERO):
         if boxes<lot.boxes and (gross>=lot.gross or gross-tare>=lot.net):
             raise ValidationError('Qoladigan yashiklar uchun musbat mahsulot vazni qolishi kerak.')
     days=max(0,(day-lot.received_on).days+(1 if lot.bill_exit_day else 0))
-    if lot.service=='cooling':
+    if lot.service=='rental':
+        if kind=='storage_bill':raise ValidationError('Butun kamera ijarasi alohida hisoblanadi.')
+        days=tiered_days(lot.received_on,day)
+        charge=ZERO
+        target=lot.storage_billed
+    elif lot.service=='tiered':
+        if kind=='storage_bill':raise ValidationError('Bu partiya oylik saqlama xizmatida emas.')
+        days=tiered_days(lot.received_on,day)
+        charge=money((gross if lot.basis=='gross' else gross-tare)*tiered_rate(lot,days))
+        target=lot.storage_billed
+    elif lot.service=='cooling':
         if kind=='storage_bill':raise ValidationError('Bu partiya saqlama xizmatida emas.')
         charge=money((gross if lot.basis=='gross' else gross-tare)*lot.rate*days)
         target=lot.storage_billed
@@ -79,15 +120,22 @@ def receive(user,data):
     tariff=Tariff.objects.get(pk=data['tariff'].pk,is_active=True)
     if customer.organization_id!=cam.organization_id or tariff.organization_id!=cam.organization_id:raise PermissionDenied
     date_check(data['date'],data['date']);weights(data['boxes'],data['gross'],data['tare'])
+    existing_rentals=CameraRentalAgreement.objects.filter(camera=cam,start_on__lte=data['date']).filter(Q(end_on__isnull=True)|Q(end_on__gte=data['date']))
+    if tariff.service=='rental':
+        agreement=existing_rentals.filter(customer=customer).first()
+        if not agreement:raise ValidationError('Kamera bu mijozga ijaraga berilmagan. Avval oylik ijara shartini kiriting.')
+    else:
+        if existing_rentals.exists():raise ValidationError('Bu kamera butunlay ijarada. Kilogramm tarifi bilan yuk qabul qilinmaydi.')
+        agreement=None
     if cam.capacity_kg is not None:
         used=Lot.objects.filter(camera=cam,closed_on__isnull=True).aggregate(n=Sum('gross'))['n'] or ZERO
         if used+data['gross']>cam.capacity_kg:raise ValidationError('Kameraning brutto kg sig‘imi yetarli emas.')
-    lot=Lot.objects.create(create_key=data['request_key'],organization=cam.organization,camera=cam,customer=customer,product=data['product'],variety=data['variety'],box_type=data['box_type'],received_on=data['date'],last_stock_date=data['date'],initial_boxes=data['boxes'],initial_gross=data['gross'],initial_tare=data['tare'],boxes=data['boxes'],gross=data['gross'],tare=data['tare'],tariff_name=tariff.name,service=tariff.service,basis=tariff.basis,rate=tariff.rate,storage_mode=tariff.storage_mode,bill_exit_day=tariff.bill_exit_day,note=data['note'],created_by=user)
+    lot=Lot.objects.create(create_key=data['request_key'],organization=cam.organization,camera=cam,customer=customer,product=data['product'],variety=data['variety'],box_type=data['box_type'],received_on=data['date'],last_stock_date=data['date'],initial_boxes=data['boxes'],initial_gross=data['gross'],initial_tare=data['tare'],boxes=data['boxes'],gross=data['gross'],tare=data['tare'],tariff_name=tariff.name,service=tariff.service,basis=tariff.basis,rate=tariff.rate,storage_mode=tariff.storage_mode,bill_exit_day=tariff.bill_exit_day,rental_agreement=agreement,**{f:getattr(tariff,f) for f in TIER_FIELDS},note=data['note'],created_by=user)
     Operation.objects.create(request_key=data['request_key'],lot=lot,camera=cam,kind='receive',date=data['date'],boxes=lot.boxes,gross=lot.gross,tare=lot.tare,boxes_after=lot.boxes,gross_after=lot.gross,tare_after=lot.tare,created_by=user)
     return lot
 
 @transaction.atomic
-def act(user,lot_id,kind,data):
+def act(user,lot_id,kind,data,expected_snapshot=None):
     # Lock the lot before reading balances; duplicate submits reuse the committed operation.
     lot=Lot.objects.select_for_update().get(pk=lot_id)
     permission={'loss':'dispatch','storage_bill':'finance'}.get(kind,kind)
@@ -96,6 +144,8 @@ def act(user,lot_id,kind,data):
     if prior:
         if prior.lot_id!=lot.pk or prior.kind!=kind:raise ValidationError('Hujjat kaliti boshqa amal uchun ishlatilgan.')
         return prior
+    if expected_snapshot is not None and expected_snapshot != dispatch_snapshot(lot):
+        raise ValidationError('Partiya qoldig‘i yoki hisob holati o‘zgargan. Hisobni qayta ko‘rib, yana tasdiqlang.')
     day=data['date'];date_check(day,lot.last_stock_date)
     amount=ZERO;charge=ZERO;days=0;boxes=0;gross=ZERO;tare=ZERO;target_cam=None
     if kind in ['dispatch','loss','storage_bill']:
@@ -120,6 +170,9 @@ def act(user,lot_id,kind,data):
         dest_id=data['target_camera'].pk
         locked={c.pk:c for c in Camera.objects.select_for_update().filter(pk__in=[lot.camera_id,dest_id]).order_by('pk')}
         target_cam=locked[dest_id]
+        if lot.rental_agreement_id:raise ValidationError('Kamera ijarasidagi yuk boshqa kameraga ko‘chirilmaydi.')
+        if CameraRentalAgreement.objects.filter(camera=target_cam,start_on__lte=day).filter(Q(end_on__isnull=True)|Q(end_on__gte=day)).exists():
+            raise ValidationError('Maqsad kamera butunlay ijaraga berilgan.')
         authorize(user,lot.organization_id,target_cam.pk,'transfer')
         if target_cam.pk==lot.camera_id:raise ValidationError('Boshqa kamerani tanlang.')
         if target_cam.capacity_kg is not None:
@@ -166,3 +219,89 @@ def reverse_last(user,op_id,key,reason):
     lot.last_stock_date=timezone.localdate()
     reversal=Operation.objects.create(request_key=key,lot=lot,camera=original.camera,kind='reversal',reversal_of=original,date=timezone.localdate(),charge=-original.charge,payment=-original.payment,payment_method=original.payment_method,boxes_after=lot.boxes,gross_after=lot.gross,tare_after=lot.tare,note=reason,created_by=user)
     lot.save();return reversal
+
+@transaction.atomic
+def open_camera_rental(user,data):
+    # Keep lock order compatible with Camera.save(): organization before camera.
+    candidate=Camera.objects.get(pk=data['camera'].pk)
+    Organization.objects.select_for_update().get(pk=candidate.organization_id)
+    cam=Camera.objects.select_for_update().get(pk=data['camera'].pk)
+    authorize(user,cam.organization_id,cam.pk,'tariff')
+    customer=Customer.objects.get(pk=data['customer'].pk)
+    if customer.organization_id!=cam.organization_id:raise PermissionDenied
+    if Lot.objects.filter(camera=cam,closed_on__isnull=True).exists():
+        raise ValidationError('Kamera band. Butun kamerani ijaraga berishdan oldin avvalgi yuklarni chiqaring.')
+    agreement=CameraRentalAgreement(camera=cam,customer=customer,start_on=data['start_on'],
+         end_on=data.get('end_on'),monthly_rate=data['monthly_rate'],created_by=user)
+    agreement.save()
+    # One-click rental onboarding: make the zero-per-lot tariff available automatically.
+    # Lock organization for safe idempotent tariff seed across different cameras.
+    if not Tariff.objects.filter(organization=cam.organization,service='rental',is_active=True).exists():
+        Tariff.objects.create(organization=cam.organization,name='Butun kamera ijarasi',
+            service='rental',basis='net',rate=ZERO,storage_mode='prorata',created_by=user)
+    return agreement
+
+def next_camera_rental_month(agreement):
+    return month_boundary(agreement.start_on,agreement.invoices.count())
+
+@transaction.atomic
+def issue_camera_rental_invoice(user,agreement_id,request_key):
+    agreement=CameraRentalAgreement.objects.select_for_update().select_related('camera').get(pk=agreement_id)
+    authorize(user,agreement.camera.organization_id,agreement.camera_id,'tariff')
+    old=CameraRentalInvoice.objects.filter(request_key=request_key).first()
+    if old:
+        if old.agreement_id!=agreement.pk:raise ValidationError('Hisob kaliti boshqa ijaraga tegishli.')
+        return old
+    month=next_camera_rental_month(agreement)
+    if month>timezone.localdate() or (agreement.end_on and month>agreement.end_on):
+        raise ValidationError('Hisob chiqarish uchun yangi ijara oyi boshlanmagan.')
+    end=month_boundary(agreement.start_on,agreement.invoices.count()+1)-timedelta(days=1)
+    return CameraRentalInvoice.objects.create(agreement=agreement,period_start=month,
+        period_end=end,amount=agreement.rate_on(month),request_key=request_key,created_by=user)
+
+@transaction.atomic
+def change_camera_rental_rate(user,agreement_id,rate,start):
+    agreement=CameraRentalAgreement.objects.select_for_update().select_related('camera').get(pk=agreement_id)
+    authorize(user,agreement.camera.organization_id,agreement.camera_id,'tariff')
+    month=next_camera_rental_month(agreement)
+    if rate<=0:raise ValidationError('Narx musbat bo‘lishi shart.')
+    if start!=month or start<timezone.localdate() or (agreement.end_on and start>agreement.end_on):
+        raise ValidationError('Yangi narx faqat hali hisob yozilmagan navbatdagi ijara oyidan belgilanadi.')
+    if agreement.rate_changes.filter(effective_from=start).exists():
+        raise ValidationError('Bu ijara oyi uchun narx allaqachon o‘zgartirilgan.')
+    return CameraRentalRateChange.objects.create(agreement=agreement,effective_from=start,
+        monthly_rate=rate,created_by=user)
+
+@transaction.atomic
+def pay_camera_rental_invoice(user,invoice_id,request_key,amount,method,day):
+    invoice=CameraRentalInvoice.objects.select_for_update().select_related('agreement__camera').get(pk=invoice_id)
+    authorize(user,invoice.agreement.camera.organization_id,invoice.agreement.camera_id,'payment')
+    old=CameraRentalPayment.objects.filter(request_key=request_key).first()
+    if old:
+        if old.invoice_id!=invoice.pk:raise ValidationError('To‘lov kaliti boshqa hujjatga tegishli.')
+        return old
+    date_check(day,invoice.period_start)
+    if amount<=0 or amount>invoice.debt:raise ValidationError('To‘lov summasi 0 dan katta va qarzdan oshmasligi kerak.')
+    if method not in ['cash','bank','card']:raise ValidationError('To‘lov usuli noto‘g‘ri.')
+    return CameraRentalPayment.objects.create(invoice=invoice,request_key=request_key,
+        amount=amount,method=method,date=day,created_by=user)
+
+@transaction.atomic
+def close_camera_rental(user,agreement_id,last_day):
+    """End an indefinite rental only after every associated lot has departed."""
+    agreement=CameraRentalAgreement.objects.select_for_update().select_related('camera').get(pk=agreement_id)
+    authorize(user,agreement.camera.organization_id,agreement.camera_id,'tariff')
+    if agreement.end_on is not None:
+        raise ValidationError('Ijara shartining tugash sanasi avval belgilangan.')
+    if last_day<agreement.start_on or last_day>timezone.localdate():
+        raise ValidationError('Tugash sanasi ijara boshlanishidan oldin yoki kelajakda bo‘la olmaydi.')
+    if Lot.objects.filter(rental_agreement=agreement,closed_on__isnull=True).exists():
+        raise ValidationError('Ijarani yakunlashdan oldin kamera ichidagi barcha yuklarni chiqaring.')
+    if agreement.invoices.filter(period_start__gt=last_day).exists():
+        raise ValidationError('Tugash sanasi avval chiqarilgan hisob davridan oldin bo‘lishi mumkin emas.')
+    last_movement=Operation.objects.filter(lot__rental_agreement=agreement).order_by('-date').first()
+    if last_movement and last_movement.date>last_day:
+        raise ValidationError('Tugash sanasi oxirgi yuk harakatidan oldin bo‘lishi mumkin emas.')
+    agreement.end_on=last_day
+    agreement.save(update_fields=['end_on'])
+    return agreement

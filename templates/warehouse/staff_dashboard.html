@@ -1,0 +1,104 @@
+{% extends 'warehouse/base.html' %}
+{% block title %}Xodimlar va huquqlar · Muzlatgich ERP{% endblock %}
+{% block content %}
+<section class="overview-head">
+  <div><div class="eyebrow">SUPER ADMIN / FOYDALANUVCHILAR</div><h1>Xodimlar va huquqlar</h1>
+    <p class="muted">Tashkilotning xodimini yarating, lavozimini va qaysi filialda ishlashini belgilang.</p>
+  </div>
+  <div class="overview-actions"><a class="button secondary" href="{% url 'platform_dashboard' %}">← Tashkilotlar</a>
+    <a class="button secondary" href="{% url 'admin:core_membership_changelist' %}">Kengaytirilgan huquqlar ↗</a></div>
+</section>
+<section class="staff-help">
+  <div><strong><span>1</span> Tashkilot</strong><small>Qaysi tashkilot xodimi?</small></div>
+  <div><strong><span>2</span> Lavozim</strong><small>Tayyor huquqlar to‘plami</small></div>
+  <div><strong><span>3</span> Filial</strong><small>Barchasi yoki bittasi</small></div>
+</section>
+<div class="staff-grid">
+  <section class="card staff-create">
+    <div class="section-heading"><div><h2>Yangi xodim yaratish</h2><p class="muted">Login va parolni o‘zingiz belgilang. Xodim foydalanishi uchun alohida akkaunt ochiladi.</p></div></div>
+    <form method="post" class="setup-form" autocomplete="off" id="staff-form">
+      {% csrf_token %}<input type="hidden" name="action" value="create">
+      {{ form.non_field_errors }}
+      {% for field in form.visible_fields %}
+        <div class="field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+          {{ field.errors }}{% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+        </div>
+      {% endfor %}
+      <div class="staff-security">
+        <strong><span aria-hidden="true">🔒</span> Xavfsizlik</strong>
+        <p>Parol 12 belgidan kam bo‘lmasin. Bir xil login takrorlanmaydi. Parol hech qanday hisobotda ko‘rsatilmaydi.</p>
+      </div>
+      <button type="submit">Xodim hisobini yaratish →</button>
+    </form>
+  </section>
+  <aside class="staff-guidance">
+    <h2>Lavozim imkoniyatlari</h2>
+    <div class="staff-role"><strong>Tashkilot admini</strong><span>Kirim, chiqim, ko‘chirish, to‘lov, tarif va xarajatlarni boshqaradi. Yangi kamera yoki boshqa xodim huquqini berolmaydi.</span></div>
+    <div class="staff-role"><strong>Omborchi</strong><span>Yukni qabul qiladi, chiqaradi va ko‘chiradi. Moliya yoki tarifni o‘zgartirmaydi.</span></div>
+    <div class="staff-role"><strong>Buxgalter</strong><span>To‘lov, xarajat va moliyaviy hisobotlarni boshqaradi.</span></div>
+    <div class="staff-role"><strong>Rahbar</strong><span>Moliyaviy natijalar va mavjud yuklarni kuzatadi; operatsiyalarni tahrirlamaydi.</span></div>
+    <div class="staff-security">
+      <strong>Qarzga chiqarish</strong>
+      <p>Bu alohida xavfli huquq bo‘lib, hech qaysi tayyor lavozimga avtomatik berilmaydi. Zarurat bo‘lsa kengaytirilgan huquqlar orqali Super Admin tasdiqlaydi.</p>
+    </div>
+  </aside>
+</div>
+<section class="setup-directory" id="staff-list">
+  <div class="section-heading"><div><h2>Biriktirilgan xodimlar</h2><p class="muted">{{ total_staff_grants }} ta tashkilot ruxsati. Jadvalda oxirgi 70 ta yozuv ko‘rsatiladi.</p></div></div>
+  <form class="staff-filter" method="get"><label for="staff-org-filter">Tashkilot bo‘yicha</label>
+    <div><select id="staff-org-filter" name="organization"><option value="">Barcha tashkilotlar</option>
+       {% for org in organizations %}<option value="{{ org.pk }}" {% if organization_filter == org.pk|stringformat:'s' %}selected{% endif %}>{{ org.name }}</option>{% endfor %}</select>
+       <button type="submit">Ko‘rsatish</button></div>
+  </form>
+  <div class="staff-cards">
+  {% for grant in memberships %}
+    <article class="staff-card">
+      <div class="staff-card-head"><div><strong>{{ grant.user.get_full_name|default:grant.user.username }}</strong>
+        <small>@{{ grant.user.username }} · {{ grant.organization.name }}</small></div>
+        {% if grant.is_active %}<span class="tag">Faol</span>{% else %}<span class="tag closed">To‘xtatilgan</span>{% endif %}
+      </div>
+      <div class="staff-meta"><span>{{ grant.get_role_display }}</span>
+        <span>{% if grant.all_facilities %}Barcha filiallar{% else %}{% for branch in grant.facilities.all %}{{ branch.name }}{% if not forloop.last %}, {% endif %}{% empty %}Filial belgilanmagan{% endfor %}{% endif %}</span></div>
+      <div class="staff-actions">
+        <a href="{% url 'admin:core_membership_change' grant.pk %}">Huquqlarni tahrirlash ↗</a>
+        {% if not grant.user.is_superuser %}
+        <form method="post" class="staff-toggle" data-confirm>
+          {% csrf_token %}<input type="hidden" name="membership_id" value="{{ grant.pk }}">
+          {% if grant.is_active %}
+            <input type="hidden" name="action" value="revoke"><button type="submit" class="button secondary">Ruxsatni to‘xtatish</button>
+          {% else %}
+            <input type="hidden" name="action" value="activate"><button type="submit" class="button secondary">Ruxsatni tiklash</button>
+          {% endif %}
+        </form>
+        {% endif %}
+      </div>
+    </article>
+  {% empty %}<div class="empty-state"><h3>Xodimlar topilmadi</h3><p>Yuqoridagi forma orqali yangi xodim qo‘shing.</p></div>{% endfor %}
+  </div>
+</section>
+{{ facility_mapping|json_script:"staff-facility-map" }}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const form=document.getElementById('staff-form');
+  const org=form && form.querySelector('[name="staff-organization"]');
+  const facility=form && form.querySelector('[name="staff-facility"]');
+  const mappingEl=document.getElementById('staff-facility-map');
+  if(!org || !facility || !mappingEl)return;
+  const mapping=JSON.parse(mappingEl.textContent);
+  function applyScope(){
+    for(const option of facility.options){
+      if(!option.value)continue;
+      const permitted=String(mapping[option.value])===org.value;
+      option.disabled=!permitted;
+      option.hidden=!permitted;
+    }
+    if(facility.selectedOptions.length && facility.selectedOptions[0].disabled)facility.value='';
+  }
+  org.addEventListener('change',applyScope);
+  applyScope();
+})();
+</script>
+{% endblock %}

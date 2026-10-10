@@ -4,7 +4,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib.admin.models import LogEntry
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from .models import Organization,Camera,Membership
+from .models import Organization,Facility,Camera,Membership
 from .forms import MembershipForm
 from . import access
 
@@ -51,21 +51,31 @@ class OrganizationAdmin(ScopedAdmin):
     search_fields = ['name','code']
     def get_queryset(self,request):return access.organizations(request.user)
 
+@admin.register(Facility,site=site)
+class FacilityAdmin(ScopedAdmin):
+    autocomplete_fields = ['organization']
+    list_display = ['organization','name','region','district','code','is_active']
+    list_filter = ['organization','region','is_active']
+    search_fields = ['name','region','district','address','organization__name']
+    def get_queryset(self,request):
+        return Facility.objects.filter(organization__in=access.organizations(request.user)).select_related('organization')
+
 @admin.register(Camera,site=site)
 class CameraAdmin(ScopedAdmin):
-    list_display = ['organization','number','name','capacity_kg','is_active']
-    list_filter = ['organization','is_active']
-    search_fields = ['name','organization__name']
-    def get_queryset(self,request):return access.cameras(request.user).select_related('organization')
+    autocomplete_fields = ['organization','facility']
+    list_display = ['organization','facility','number','name','capacity_kg','is_active']
+    list_filter = ['organization','facility','is_active']
+    search_fields = ['name','organization__name','facility__name']
+    def get_queryset(self,request):return access.cameras(request.user).select_related('organization','facility')
 
 @admin.register(Membership,site=site)
 class MembershipAdmin(ScopedAdmin):
     form = MembershipForm
-    list_display = ['user','organization','role','all_cameras','is_active']
+    list_display = ['user','organization','role','all_facilities','all_cameras','is_active']
     list_filter = ['organization','role','is_active']
     search_fields = ['user__username','organization__name']
-    filter_horizontal = ['cameras']
-    fieldsets = [('Kimga va qayerda',{'fields':('user','organization','role','is_active')}),('Kameralar',{'fields':('all_cameras','cameras')}),('Amallar',{'description':'Lavozimning o‘zi huquq bermaydi. Quyidagi huquqlar alohida tanlanadi. Kamera yaratish va huquq berish doimo super adminda.','fields':('can_receive','can_dispatch','can_transfer','can_take_payment','can_view_finance','can_set_tariffs','can_dispatch_on_debt','can_manage_expenses')})]
+    filter_horizontal = ['facilities','cameras']
+    fieldsets = [('Kimga va qayerda',{'fields':('user','organization','role','is_active')}),('Kameralar',{'fields':('all_facilities','facilities','all_cameras','cameras')}),('Amallar',{'description':'Lavozimning o‘zi huquq bermaydi. Quyidagi huquqlar alohida tanlanadi. Kamera yaratish va huquq berish doimo super adminda.','fields':('can_receive','can_dispatch','can_transfer','can_take_payment','can_view_finance','can_set_tariffs','can_dispatch_on_debt','can_manage_expenses','can_monitor_environment')})]
     def get_queryset(self,request):
         if request.user.is_superuser:return Membership.objects.select_related('user','organization')
         return access.memberships(request.user)

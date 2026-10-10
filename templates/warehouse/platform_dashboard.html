@@ -1,0 +1,122 @@
+{% extends 'warehouse/base.html' %}
+{% block title %}Platformani sozlash · Muzlatgich ERP{% endblock %}
+{% block content %}
+<section class="overview-head">
+  <div>
+    <div class="eyebrow">SUPER ADMIN / RESPUBLIKA PLATFORMASI</div>
+    <h1>Tashkilotlar va omborlarni sozlash</h1>
+    <p class="muted">Tashkilot → filial → kamera. Uch bosqichda foydalanishga tayyorlang.</p>
+  </div>
+  <div class="overview-actions">
+    <a class="button secondary" href="{% url 'admin:index' %}">Kengaytirilgan sozlamalar ↗</a>
+    <a class="button" href="{% url 'dashboard' %}">Ombor paneliga o‘tish →</a>
+  </div>
+</section>
+<div class="setup-stats" aria-label="Platformaning umumiy holati">
+  <div class="setup-stat"><span>Tashkilotlar</span><strong>{{ total_organizations }}</strong></div>
+  <div class="setup-stat"><span>Filiallar</span><strong>{{ total_facilities }}</strong></div>
+  <div class="setup-stat"><span>Kameralar</span><strong>{{ total_cameras }}</strong></div>
+</div>
+<section class="setup-readiness" aria-labelledby="setup-readiness-title">
+  <div class="setup-readiness-top">
+    <div><span class="eyebrow">BIRINCHI ISHGA TUSHIRISH YO‘RIQNOMASI</span>
+      <h2 id="setup-readiness-title">Dastlabki sozlash</h2>
+      <p class="muted">Ma’lumotlar mavjudligiga qarab yangilanadi. Har bir tashkilot bo‘yicha alohida qabul sinovi baribir zarur.</p>
+    </div>
+    <strong>{{ setup_completed }} / {{ setup_total }} bosqich</strong>
+  </div>
+  <div class="setup-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ setup_percent }}" aria-label="Dastlabki sozlash jarayoni">
+    <span style="width:{{ setup_percent }}%"></span>
+  </div>
+  <div class="setup-readiness-grid">
+  {% for step in setup_steps %}
+    <a class="setup-readiness-step {% if step.ready %}is-complete{% endif %}"
+       href="{% url step.url_name %}{% if step.anchor %}#{{ step.anchor }}{% endif %}">
+      <span aria-hidden="true">{% if step.ready %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
+      <strong>{{ step.label }}</strong>
+      <small>{% if step.ready %}Mavjud{% else %}Boshlash →{% endif %}</small>
+    </a>
+  {% endfor %}
+  </div>
+  <p class="help">Bu jadval dastlabki sinov uchun. Rasmiy chek, zahira nusxa, haqiqiy Telegram yetkazilishi va mobil QR ishlashi bu yerda avtomatik tasdiqlanmaydi.</p>
+</section>
+<nav class="setup-steps" aria-label="Sozlash bosqichlari">
+  <a href="#organizations"><span>1</span> Tashkilot</a>
+  <a href="#facilities"><span>2</span> Filial</a>
+  <a href="#cameras"><span>3</span> Kamera</a>
+</nav>
+<div class="setup-form-grid">
+  <section class="card setup-card" id="organizations">
+    <div class="setup-heading"><span class="step-number">01</span><div><h2>Tashkilot qo‘shish</h2><p class="muted">Yangi mijoz tashkilot uchun mustaqil hisob oching.</p></div></div>
+    <form method="post" class="setup-form" autocomplete="off">
+      {% csrf_token %}<input type="hidden" name="action" value="organization">
+      {{ organization_form.non_field_errors }}
+      {% for field in organization_form.visible_fields %}
+      <div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}</div>
+      {% endfor %}
+      <button type="submit">Tashkilotni saqlash →</button>
+    </form>
+  </section>
+  <section class="card setup-card" id="facilities">
+    <div class="setup-heading"><span class="step-number">02</span><div><h2>Filial qo‘shish</h2><p class="muted">Tashkilotning ombori va manzilini belgilang.</p></div></div>
+    {% if not total_organizations %}<p class="notice warning">Avval birinchi tashkilotni yarating.</p>{% endif %}
+    <form method="post" class="setup-form" autocomplete="off">
+      {% csrf_token %}<input type="hidden" name="action" value="facility">
+      {{ facility_form.non_field_errors }}
+      {% for field in facility_form.visible_fields %}
+      <div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}</div>
+      {% endfor %}
+      <button type="submit" {% if not total_organizations %}disabled{% endif %}>Filialni saqlash →</button>
+    </form>
+  </section>
+  <section class="card setup-card" id="cameras">
+    <div class="setup-heading"><span class="step-number">03</span><div><h2>Kamera qo‘shish</h2><p class="muted">Filial, kamera raqami va sig‘imini kiriting.</p></div></div>
+    {% if not total_facilities %}<p class="notice warning">Avval filialni yarating.</p>{% endif %}
+    <form method="post" class="setup-form" autocomplete="off">
+      {% csrf_token %}<input type="hidden" name="action" value="camera">
+      {{ camera_form.non_field_errors }}
+      {% for field in camera_form.visible_fields %}
+      <div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}</div>
+      {% endfor %}
+      <button type="submit" {% if not total_facilities %}disabled{% endif %}>Kamerani saqlash →</button>
+    </form>
+  </section>
+</div>
+<div class="setup-next">
+  <div><h2>Endi ishni boshlash mumkin</h2><p class="muted">Kameradan so‘ng tashkilotga tarif, mijoz va xodim huquqlarini qo‘shing.</p></div>
+  <div class="setup-next-actions">
+    <a href="{% url 'tariffs' %}">Tariflar ↗</a>
+    <a href="{% url 'customers' %}">Mijozlar ↗</a>
+    <a href="{% url 'staff_dashboard' %}">Xodim yaratish ↗</a>
+    <a href="{% url 'staff_dashboard' %}">Huquq berish ↗</a><a href="{% url 'telegram_destinations' %}">Telegram ulanishi ↗</a>
+  </div>
+</div>
+<section class="setup-directory" aria-labelledby="directory-title">
+  <div class="section-heading"><div><h2 id="directory-title">Tashkilotlar ro‘yxati</h2><p class="muted">Dastlabki 50 ta mos tashkilot. Qidiruv barcha tashkilotlardan izlaydi.</p></div></div>
+  <form method="get" class="setup-search">
+    <label for="org-search">Tashkilotni qidirish</label>
+    <div><input type="search" id="org-search" name="q" value="{{ q }}" placeholder="Nomi yoki kodi"><button type="submit">Izlash</button></div>
+  </form>
+  <div class="setup-directory-grid">
+  {% for org in organizations %}
+  <article class="setup-directory-card">
+    <div><strong>{{ org.name }}</strong><small>{{ org.code }}</small></div>
+    <div class="setup-chips"><span>{{ org.facility_count }} filial</span><span>{{ org.camera_count }} / {{ org.camera_limit }} kamera</span>{% if not org.is_active %}<span>To‘xtatilgan</span>{% endif %}</div>
+    <a href="{% url 'admin:core_organization_change' org.pk %}">Tahrirlash ↗</a>
+  </article>
+  {% empty %}<div class="empty-state"><h3>Tashkilot topilmadi</h3><p>Yuqoridan yangi tashkilot yarating yoki qidiruvni o‘zgartiring.</p></div>{% endfor %}
+  </div>
+</section>
+<section class="setup-directory" aria-labelledby="branch-list-title">
+  <div class="section-heading"><div><h2 id="branch-list-title">So‘nggi filiallar</h2><p class="muted">Filial va kameralarni Super Admin boshqaradi.</p></div></div>
+  <div class="setup-directory-grid">
+  {% for branch in facility_rows %}
+  <article class="setup-directory-card">
+    <div><strong>{{ branch.name }}</strong><small>{{ branch.organization.name }}{% if branch.region %} · {{ branch.region }}{% endif %}</small></div>
+    <div class="setup-chips"><span>{{ branch.camera_count }} kamera</span>{% if branch.district %}<span>{{ branch.district }}</span>{% endif %}</div>
+    <a href="{% url 'admin:core_facility_change' branch.pk %}">Filialni boshqarish ↗</a>
+  </article>
+  {% empty %}<p class="muted">Hozircha filial yo‘q.</p>{% endfor %}
+  </div>
+</section>
+{% endblock %}

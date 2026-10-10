@@ -36,10 +36,10 @@ class IntakeForm(RequestForm):
         return d
 
 class OperationForm(RequestForm):
-    boxes=forms.IntegerField(label='Chiqariladigan yashik',min_value=1,required=False)
-    gross=forms.DecimalField(label='Chiqariladigan brutto, kg',min_value=Decimal('.001'),max_digits=14,decimal_places=3,required=False)
-    tare=forms.DecimalField(label='Chiqariladigan jami tara, kg',min_value=0,max_digits=14,decimal_places=3,required=False)
-    payment=forms.DecimalField(label='Hozir olinadigan to‘lov, so‘m',min_value=0,max_digits=16,decimal_places=2,initial=0,required=False)
+    boxes=forms.IntegerField(label='Chiqariladigan yashik',min_value=1,required=False,widget=forms.NumberInput(attrs={'inputmode':'numeric','step':'1'}))
+    gross=forms.DecimalField(label='Chiqariladigan brutto, kg',min_value=Decimal('.001'),max_digits=14,decimal_places=3,required=False,widget=forms.NumberInput(attrs={'inputmode':'decimal','step':'0.001'}))
+    tare=forms.DecimalField(label='Chiqariladigan jami tara, kg',min_value=0,max_digits=14,decimal_places=3,required=False,widget=forms.NumberInput(attrs={'inputmode':'decimal','step':'0.001'}))
+    payment=forms.DecimalField(label='Hozir olinadigan to‘lov, so‘m',min_value=0,max_digits=16,decimal_places=2,initial=0,required=False,widget=forms.NumberInput(attrs={'inputmode':'decimal','step':'0.01'}))
     payment_method=forms.ChoiceField(label='To‘lov turi',choices=[('cash','Naqd'),('bank','O‘tkazma'),('card','Karta')])
     target_camera=forms.ModelChoiceField(label='Qaysi kameraga',queryset=None,required=False)
     def __init__(self,user,lot,kind,*args,**kwargs):
@@ -75,11 +75,43 @@ class TariffForm(forms.Form):
     name=forms.CharField(label='Tarif nomi',max_length=120)
     service=forms.ChoiceField(label='Xizmat',choices=Tariff._meta.get_field('service').choices)
     basis=forms.ChoiceField(label='Sovutish vazni',choices=Tariff._meta.get_field('basis').choices)
-    rate=forms.DecimalField(label='Sovutish: so‘m/kg/kun; saqlama: so‘m/oy',min_value=0,max_digits=16,decimal_places=2)
+    rate=forms.DecimalField(label='Eski tariflar uchun: so‘m/kg/kun yoki so‘m/oy',min_value=0,max_digits=16,decimal_places=2,required=False)
+    tier_1_10=forms.DecimalField(label='1–10 kun: so‘m/kg',min_value=0,max_digits=16,decimal_places=2,required=False,initial=250)
+    tier_11_15=forms.DecimalField(label='11–15 kun: so‘m/kg',min_value=0,max_digits=16,decimal_places=2,required=False,initial=300)
+    tier_16_25=forms.DecimalField(label='16–25 kun: so‘m/kg',min_value=0,max_digits=16,decimal_places=2,required=False,initial=400)
+    tier_26_30=forms.DecimalField(label='26–30 kun: so‘m/kg',min_value=0,max_digits=16,decimal_places=2,required=False,initial=450)
+    tier_31_plus=forms.DecimalField(label='31 kundan so‘ng: so‘m/kg',min_value=0,max_digits=16,decimal_places=2,required=False,initial=450)
     storage_mode=forms.ChoiceField(label='Saqlama usuli',choices=Tariff._meta.get_field('storage_mode').choices)
     bill_exit_day=forms.BooleanField(label='Chiqish kuniga ham haq olinadi',required=False)
     def __init__(self,user,*args,**kwargs):
-        super().__init__(*args,**kwargs);self.fields['camera'].queryset=cameras(user).filter(is_active=True,organization__is_active=True)
+        super().__init__(*args,**kwargs)
+        self.fields['camera'].queryset=cameras(user).filter(is_active=True,organization__is_active=True)
+        self.fields['service'].choices=[
+            ('Yangi hisoblash usullari',[
+                ('tiered','Kuniga qarab bir martalik so‘m/kg'),
+                ('rental','Butun kameraning oylik ijarasi')]),
+            ('Eski usullar (moslik uchun)',[
+                ('cooling','Eski sovutish: so‘m/kg/kun'),
+                ('storage','Eski partiya saqlama: so‘m/oy')])
+        ]
+        if not self.is_bound and not self.initial.get('service'):
+            self.initial['service']='tiered'
+
+    def clean(self):
+        d=super().clean()
+        if d.get('service')=='rental':
+            d['rate']=Decimal('0')
+            for key in ['tier_1_10','tier_11_15','tier_16_25','tier_26_30','tier_31_plus']:d[key]=None
+        elif d.get('service')=='tiered':
+            for key in ['tier_1_10','tier_11_15','tier_16_25','tier_26_30','tier_31_plus']:
+                if d.get(key) is None:
+                    self.add_error(key,'Bu bosqichning narxini kiriting.')
+            d['rate']=d.get('tier_1_10') or Decimal('0')
+        else:
+            if d.get('rate') is None:self.add_error('rate','Eski hisob usuli uchun narxni kiriting.')
+            for key in ['tier_1_10','tier_11_15','tier_16_25','tier_26_30','tier_31_plus']:
+                d[key]=None
+        return d
 
 class ExpenseForm(RequestForm):
     camera=forms.ModelChoiceField(label='Muzlatgich kamerasi',queryset=None)
@@ -88,3 +120,27 @@ class ExpenseForm(RequestForm):
     amount=forms.DecimalField(label='Summa, so‘m',min_value=1,max_digits=16,decimal_places=2)
     def __init__(self,user,*args,**kwargs):
         super().__init__(*args,**kwargs);self.fields['camera'].queryset=cameras(user).filter(is_active=True,organization__is_active=True)
+
+class CameraRentalForm(forms.Form):
+    camera=forms.ModelChoiceField(label='Ijara kamerasi',queryset=None)
+    customer=forms.ModelChoiceField(label='Ijarachi mijoz',queryset=Customer.objects.none())
+    start_on=forms.DateField(label='Ijara boshlanish sanasi',widget=forms.DateInput(attrs={'type':'date'}),initial=timezone.localdate)
+    end_on=forms.DateField(label='Ijara tugash sanasi (ixtiyoriy)',widget=forms.DateInput(attrs={'type':'date'}),required=False)
+    monthly_rate=forms.DecimalField(label='1 kamera uchun 1 oylik ijara, so‘m',min_value=Decimal('0.01'),
+        max_digits=16,decimal_places=2,initial=Decimal('20000000'),
+        widget=forms.NumberInput(attrs={'step':'0.01','inputmode':'decimal'}))
+    def __init__(self,user,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        from core.access import authorize
+        from django.core.exceptions import PermissionDenied
+        ids=[]
+        for cam in cameras(user).filter(is_active=True,organization__is_active=True):
+            try:authorize(user,cam.organization_id,cam.pk,'tariff');ids.append(cam.pk)
+            except PermissionDenied:pass
+        self.fields['camera'].queryset=cameras(user).filter(pk__in=ids)
+        self.fields['customer'].queryset=Customer.objects.filter(organization__in=organizations(user))
+    def clean(self):
+        d=super().clean()
+        if d.get('camera') and d.get('customer') and d['camera'].organization_id!=d['customer'].organization_id:
+            self.add_error('customer','Mijoz kamera tashkilotiga tegishli bo‘lishi kerak.')
+        return d
