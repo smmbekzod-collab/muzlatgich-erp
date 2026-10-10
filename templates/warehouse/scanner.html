@@ -1,4 +1,49 @@
-{% extends 'warehouse/base.html' %}{% load static %}{% block content %}<h1>Partiya QR kodini skaner qiling</h1><p class="muted">Kamerani yoqing yoki QR tushirilgan rasmni tanlang.</p><div class="card form-card"><div id="reader"></div><p id="scan-error" role="alert"></p><label for="manual-id">Partiyaning to‘liq UUID kodi yoki QR havolasi</label><input id="manual-id" placeholder="QR havolasi yoki UUID"><div class="actions"><button type="button" id="manual-open">Partiyani ochish</button></div></div>{% endblock %}{% block scripts %}<script src="{% static 'warehouse/vendor/html5-qrcode.min.js' %}"></script><script>
-(function(){let busy=false;const error=document.getElementById('scan-error');function openLot(text){const match=String(text).trim().match(/^(?:https?:\/\/[^/]+\/app\/lot\/)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i);if(!match){error.textContent='Muzlatgich ERP partiya QR kodini tanlang.';return}if(busy)return;busy=true;location.assign('/app/lot/'+match[1]+'/')}
-document.getElementById('manual-open').addEventListener('click',()=>openLot(document.getElementById('manual-id').value));if(typeof Html5QrcodeScanner==='undefined'){error.textContent='Skaner yuklanmadi. Sahifani yangilang yoki kodni qo‘lda kiriting.';return}const scanner=new Html5QrcodeScanner('reader',{fps:10,qrbox:{width:220,height:220}},false);scanner.render(openLot,()=>{});})();
-</script>{% endblock %}
+{% extends 'warehouse/base.html' %}{% load static %}
+{% block content %}
+<div class="scanner-page">
+  <a class="back-link" href="{% url 'dashboard' %}">← Ombor bosh sahifasi</a>
+  <div class="eyebrow">OMBORCHI / TEZKOR QIDIRUV</div>
+  <h1>QR-kodni skanerlang</h1>
+  <p class="muted">Telefon kamerasini QR-kodga qarating. Topilgan partiya avtomatik ochiladi.</p>
+  <div class="card scanner-card">
+    <div class="scanner-frame" id="reader" aria-label="QR skanerlash maydoni"></div>
+    <p id="scan-error" role="alert" aria-live="polite"></p>
+    <div class="scanner-divider"><span>yoki</span></div>
+    <label for="manual-id" class="scanner-label">QR havolasi / partiya kodi</label>
+    <div class="scanner-input-row">
+      <input id="manual-id" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"
+        placeholder="UUID yoki QR havolasi" aria-describedby="scan-error">
+      <button type="button" id="manual-open">Ochish →</button>
+    </div>
+    <p class="help">Kameraga ruxsat berilmasa, tizim boshqa tashkilot ma’lumotlarini ko‘rsatmaydi. Kameradan foydalanish uchun brauzerga ruxsat bering.</p>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'warehouse/vendor/html5-qrcode.min.js' %}"></script>
+<script>
+(function () {
+  let busy = false;
+  const error = document.getElementById('scan-error');
+  const manual = document.getElementById('manual-id');
+  function openLot(raw) {
+    const text = String(raw || '').trim();
+    const match = text.match(/^(?:https?:\/\/[^/]+\/app\/lot\/)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i);
+    if (!match) { error.textContent = 'Partiyaning to‘liq UUID kodi yoki ERP QR havolasini kiriting.'; return; }
+    if (busy) return;
+    busy = true;
+    location.assign('/app/lot/' + match[1] + '/');
+  }
+  document.getElementById('manual-open').addEventListener('click', () => openLot(manual.value));
+  manual.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); openLot(manual.value); } });
+  if (typeof Html5QrcodeScanner === 'undefined') {
+    error.textContent = 'Kamera moduli yuklanmadi. QR havolasini yoki UUID kodini qo‘lda kiriting.';
+    return;
+  }
+  try {
+    const scanner = new Html5QrcodeScanner('reader', {fps:10, qrbox:{width:220,height:220}}, false);
+    scanner.render(openLot, () => {});
+  } catch (err) { error.textContent = 'Kamerani ishga tushirib bo‘lmadi. Kodni qo‘lda kiriting.'; }
+})();
+</script>
+{% endblock %}

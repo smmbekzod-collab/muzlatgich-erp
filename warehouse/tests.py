@@ -2,6 +2,7 @@ import uuid
 from decimal import Decimal as D
 from datetime import date,timedelta
 from unittest.mock import patch
+from html.parser import HTMLParser
 from django.test import TestCase,override_settings,Client
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied,ValidationError
@@ -125,8 +126,12 @@ class WorkflowTests(TestCase):
     def test_confirm_flow_http(self):
         d=self.out();d['date']=d['date'].isoformat();d['request_key']=str(d['request_key'])
         url=f'/app/lot/{self.lot.pk}/dispatch/'
-        self.assertContains(self.client.post(url,d),'Tasdiqlashdan oldin')
+        response=self.client.post(url,d)
+        self.assertContains(response,'Hisobni tekshiring')
         self.lot.refresh_from_db();self.assertEqual(self.lot.boxes,250)
+        import re, html
+        token=html.unescape(re.search(r'name="preview_token" value="([^"]+)"', response.content.decode()).group(1))
+        d['preview_token']=token
         d['confirm']='yes';response=self.client.post(url,d)
         self.assertEqual(response.status_code,302);self.lot.refresh_from_db();self.assertEqual(self.lot.boxes,150)
     def test_csrf_is_required(self):
@@ -163,6 +168,59 @@ class WorkflowTests(TestCase):
         op=act(self.u,self.lot.pk,'transfer',self.out(target_camera=self.c2))
         reverse_last(self.root,op.pk,uuid.uuid4(),'Xato')
         self.lot.refresh_from_db();self.assertEqual(self.lot.camera,self.c1)
+
+    def _dispatch_preview(self, data=None):
+        import re, html
+        d=data or self.out()
+        d={**d, 'date':d['date'].isoformat(), 'request_key':str(d['request_key'])}
+        response=self.client.post(f'/app/lot/{self.lot.pk}/dispatch/', d)
+        self.assertEqual(response.status_code,200)
+        match=re.search(r'name="preview_token" value="([^"]+)"',response.content.decode())
+        self.assertIsNotNone(match)
+        d['preview_token']=html.unescape(match.group(1))
+        return d
+
+    def test_dispatch_rejects_direct_confirmation_without_preview(self):
+        d=self.out()
+        d.update({'date':d['date'].isoformat(),'request_key':str(d['request_key']),'confirm':'yes'})
+        response=self.client.post(f'/app/lot/{self.lot.pk}/dispatch/',d)
+        self.assertContains(response,'Avval xizmat haqini hisoblab')
+        self.assertEqual(self.lot.operations.count(),1)
+
+    def test_dispatch_rejects_changed_inputs_after_preview(self):
+        d=self._dispatch_preview()
+        d['boxes']=80
+        d['confirm']='yes'
+        response=self.client.post(f'/app/lot/{self.lot.pk}/dispatch/',d)
+        self.assertContains(response,'Maydonlar o‘zgargan')
+        self.assertEqual(self.lot.operations.count(),1)
+
+    def test_dispatch_rejects_stale_preview_after_other_dispatch(self):
+        d=self._dispatch_preview()
+        # Another authorized checkout changes the lot, although the form itself is unchanged.
+        act(self.u,self.lot.pk,'dispatch',self.out())
+        d['confirm']='yes'
+        response=self.client.post(f'/app/lot/{self.lot.pk}/dispatch/',d)
+        self.assertContains(response,'qoldig‘i yoki hisob holati o‘zgargan')
+        self.assertEqual(self.lot.operations.filter(kind='dispatch').count(),1)
+
+    def test_dispatch_rejects_preview_from_different_user(self):
+        d=self._dispatch_preview()
+        other=get_user_model().objects.create_user('second_keeper',password='Long-Test-Password!',is_staff=True)
+        Membership.objects.create(user=other,organization=self.a,all_cameras=True,can_dispatch=True,can_take_payment=True)
+        self.client.force_login(other)
+        d['confirm']='yes'
+        response=self.client.post(f'/app/lot/{self.lot.pk}/dispatch/',d)
+        self.assertContains(response,'Tasdiqlash muddati tugagan yoki ma’lumot o‘zgargan' if False else 'Maydonlar o‘zgargan')
+        self.assertEqual(self.lot.operations.count(),1)
+
+    def test_scan_and_dispatch_mobile_controls_render(self):
+        scan=self.client.get('/app/scan/')
+        self.assertContains(scan,'manual-open')
+        r=self.client.get(f'/app/lot/{self.lot.pk}/dispatch/')
+        self.assertContains(r,'data-fill-all')
+        self.assertContains(r,'data-dispatch-form')
+        self.assertContains(r,'Hisobni ko‘rish')
     def test_login_throttle(self):
         self.client.logout()
         for i in range(5):self.assertEqual(self.client.post('/admin/login/',{'username':'keeper','password':'incorrect'}).status_code,200)

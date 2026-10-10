@@ -1,4 +1,67 @@
-{% extends 'warehouse/base.html' %}{% block content %}<div class="eyebrow">{{ lot.short_id }} · {{ lot.customer.name }}</div><h1>{{ title }}</h1><p>Qoldiq: <strong>{{ lot.boxes }} yashik</strong> · {{ lot.gross|floatformat:3 }} kg brutto · {{ lot.tare|floatformat:3 }} kg tara · {{ lot.net|floatformat:3 }} kg sof</p>
-{% if kind == 'transfer' %}<p class="notice">Ushbu amal partiyaning barcha qolgan yukini ko‘chiradi. QR va oldingi tarif saqlanadi.</p>{% endif %}{% if kind == 'loss' %}<p class="notice warning">Yo‘qotilgan mahsulot ombordan kamayadi. Sovutish xizmati yo‘qotish sanasigacha hisoblanadi.</p>{% endif %}
-<form method="post" class="card form-card" data-confirm>{% csrf_token %}{% include 'warehouse/form_fields.html' %}
-{% if preview %}<section class="summary" aria-live="polite"><h2>Tasdiqlashdan oldin tekshiring</h2>{% if preview.simple %}<p>{{ title }} · {{ form.date.value }}</p>{% if kind == 'payment' %}<div class="big">{{ preview.data.payment|floatformat:0 }} so‘m</div>{% else %}<p>{{ preview.data.target_camera }}</p>{% endif %}{% else %}<div class="grid"><div><div class="label">Yangi xizmat haqi</div><div class="big">{{ preview.charge|floatformat:0 }} so‘m</div></div><div><div class="label">Oldingi qarz / avans bilan to‘lash kerak</div><h2>{{ preview.due|floatformat:0 }} so‘m</h2></div><div><div class="label">Ushbu to‘lovdan keyingi qarz</div><h2>{{ preview.due_after|floatformat:0 }} so‘m</h2></div><div><div class="label">Qoladi</div><h2>{{ preview.boxes_after }} yashik</h2><span>{{ preview.gross_after|floatformat:3 }} kg brutto</span></div></div>{% endif %}</section><p class="help">Maydonlarni o‘zgartirsangiz, “Qayta hisoblash” ni bosing. Tasdiqlashda server joriy qoldiq va huquqlarni yana tekshiradi.</p><div class="actions"><button name="confirm" value="yes">Tasdiqlash va saqlash</button><button class="secondary" name="preview" value="yes">Qayta hisoblash</button></div>{% else %}<div class="actions"><button name="preview" value="yes">Hisobni ko‘rish</button></div>{% endif %}<a href="{% url 'lot' lot.pk %}">Partiyaga qaytish</a></form>{% endblock %}
+{% extends 'warehouse/base.html' %}{% load l10n %}
+{% block content %}
+<div class="operation-shell">
+  <div class="op-header">
+    <a class="back-link" href="{% url 'lot' lot.pk %}">← Partiyaga qaytish</a>
+    <div class="eyebrow">{{ lot.organization.name }} / {{ lot.camera.facility.name|default:'Asosiy ombor' }} / {{ lot.camera.number }}-kamera</div>
+    <h1>{{ title }}</h1>
+    <p class="muted">{{ lot.customer.name }} · {{ lot.product }}{% if lot.variety %} / {{ lot.variety }}{% endif %} · #{{ lot.short_id }}</p>
+  </div>
+  <div class="dispatch-balance">
+    <div><span class="dispatch-label">Qolgan yashik</span><strong>{{ lot.boxes }}</strong></div>
+    <div><span class="dispatch-label">Sof og‘irlik</span><strong>{{ lot.net|floatformat:3 }} <small>kg</small></strong></div>
+    <div><span class="dispatch-label">Brutto / tara</span><strong class="dispatch-small">{{ lot.gross|floatformat:3 }} / {{ lot.tare|floatformat:3 }}</strong></div>
+  </div>
+  {% if kind == 'dispatch' %}
+  <div class="workflow-steps" aria-label="Chiqim jarayoni">
+    <span class="workflow-step {% if not preview %}current{% else %}done{% endif %}"><b>1</b> Yuk va to‘lov</span>
+    <span class="workflow-step {% if preview %}current{% endif %}"><b>2</b> Hisobni tasdiqlash</span>
+    <span class="workflow-step"><b>3</b> Kvitansiya</span>
+  </div>
+  {% endif %}
+  {% if kind == 'transfer' %}<p class="notice">Butun qoldiq boshqa kameraga ko‘chadi. QR va avvalgi tarif saqlanadi.</p>{% endif %}
+  {% if kind == 'loss' %}<p class="notice warning">Yo‘qotilgan mahsulot kamayadi, sovutish xizmati esa yo‘qotish sanasigacha hisoblanadi.</p>{% endif %}
+  <form method="post" class="card form-card operation-form" data-confirm {% if kind == 'dispatch' %}data-dispatch-form{% endif %}>
+    {% csrf_token %}
+    {% if kind == 'dispatch' %}
+    <div class="form-section-title"><h2>1. Yuk miqdorini kiriting</h2><span class="muted">Chiqayotgan mahsulotni tarozida o‘lchang</span></div>
+    <button class="button secondary fill-all" type="button" data-fill-all
+      data-boxes="{{ lot.boxes }}" data-gross="{{ lot.gross|unlocalize }}" data-tare="{{ lot.tare|unlocalize }}">
+      Barcha qolgan yukni chiqarish
+    </button>
+    <p class="help">Qisman chiqimda brutto va tara aniq o‘lchanadi. Butun yuk tugmasi tizimdagi qoldiqni to‘ldiradi.</p>
+    {% endif %}
+    {% include 'warehouse/form_fields.html' %}
+    {% if preview %}
+    <section class="confirm-panel" aria-live="polite">
+      {% if kind == 'dispatch' %}
+      <div class="confirm-title"><span class="confirmed-icon" aria-hidden="true">✓</span><div><h2>2. Hisobni tekshiring</h2><span>Server amaldagi tarif bo‘yicha hisoblab berdi</span></div></div>
+      <input type="hidden" name="preview_token" value="{{ preview_token }}">
+      {% endif %}
+      {% if preview.simple %}
+        <div class="confirm-amount">{{ title }} · {{ form.date.value }}</div>
+        {% if kind == 'payment' %}<strong class="confirm-amount">{{ preview.data.payment|floatformat:0 }} so‘m</strong>{% else %}<p>{{ preview.data.target_camera }}</p>{% endif %}
+      {% else %}
+        <div class="confirm-grid">
+          <div><span>Yangi xizmat haqi</span><strong>{{ preview.charge|floatformat:0 }} <small>so‘m</small></strong></div>
+          <div><span>Jami to‘lash kerak</span><strong>{{ preview.due|floatformat:0 }} <small>so‘m</small></strong></div>
+          <div><span>Hozir olinadigan to‘lov</span><strong>{{ preview.pay_now|floatformat:0 }} <small>so‘m</small></strong></div>
+          <div><span>To‘lovdan keyingi qarz</span><strong>{{ preview.due_after|floatformat:0 }} <small>so‘m</small></strong></div>
+        </div>
+        {% if kind == 'dispatch' %}
+        <div class="result-strip"><span>Chiqimdan keyin qoladi</span><strong>{{ preview.boxes_after }} yashik · {{ preview.gross_after|floatformat:3 }} kg brutto</strong></div>
+        {% endif %}
+      {% endif %}
+      <p class="confirm-hint" {% if kind == 'dispatch' %}data-preview-changed hidden{% endif %}>Agar maydonlarni o‘zgartirsangiz, avval qayta hisoblang. Tasdiqlashda qoldiq va huquqlar yana tekshiriladi.</p>
+    </section>
+    <div class="operation-buttons">
+      <button type="submit" name="confirm" value="yes" {% if kind == 'dispatch' %}data-final-confirm{% endif %}>Tasdiqlash va saqlash</button>
+      <button type="submit" class="secondary" name="preview" value="yes">Qayta hisoblash</button>
+    </div>
+    {% else %}
+    <div class="operation-buttons"><button type="submit" name="preview" value="yes">{% if kind == 'dispatch' %}2. Hisobni ko‘rish →{% else %}Hisobni ko‘rish{% endif %}</button></div>
+    {% endif %}
+    <a class="back-link" href="{% url 'lot' lot.pk %}">← Partiyaga qaytish</a>
+  </form>
+</div>
+{% endblock %}

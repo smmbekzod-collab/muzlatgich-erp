@@ -36,10 +36,10 @@ class IntakeForm(RequestForm):
         return d
 
 class OperationForm(RequestForm):
-    boxes=forms.IntegerField(label='Chiqariladigan yashik',min_value=1,required=False)
-    gross=forms.DecimalField(label='Chiqariladigan brutto, kg',min_value=Decimal('.001'),max_digits=14,decimal_places=3,required=False)
-    tare=forms.DecimalField(label='Chiqariladigan jami tara, kg',min_value=0,max_digits=14,decimal_places=3,required=False)
-    payment=forms.DecimalField(label='Hozir olinadigan to‘lov, so‘m',min_value=0,max_digits=16,decimal_places=2,initial=0,required=False)
+    boxes=forms.IntegerField(label='Chiqariladigan yashik',min_value=1,required=False,widget=forms.NumberInput(attrs={'inputmode':'numeric','step':'1'}))
+    gross=forms.DecimalField(label='Chiqariladigan brutto, kg',min_value=Decimal('.001'),max_digits=14,decimal_places=3,required=False,widget=forms.NumberInput(attrs={'inputmode':'decimal','step':'0.001'}))
+    tare=forms.DecimalField(label='Chiqariladigan jami tara, kg',min_value=0,max_digits=14,decimal_places=3,required=False,widget=forms.NumberInput(attrs={'inputmode':'decimal','step':'0.001'}))
+    payment=forms.DecimalField(label='Hozir olinadigan to‘lov, so‘m',min_value=0,max_digits=16,decimal_places=2,initial=0,required=False,widget=forms.NumberInput(attrs={'inputmode':'decimal','step':'0.01'}))
     payment_method=forms.ChoiceField(label='To‘lov turi',choices=[('cash','Naqd'),('bank','O‘tkazma'),('card','Karta')])
     target_camera=forms.ModelChoiceField(label='Qaysi kameraga',queryset=None,required=False)
     def __init__(self,user,lot,kind,*args,**kwargs):

@@ -19,6 +19,7 @@ from .customer_excel import customer_excel, allowed_customers
 from .general_excel import general_excel
 from .forms import IntakeForm,OperationForm,CustomerForm,TariffForm,ExpenseForm,RequestForm
 from .services import receive,act,quote,totals,pending,ZERO,date_check,reverse_last
+from .dispatch_preview import make_dispatch_token, verify_dispatch_token
 
 def visible_lots(user):return Lot.objects.filter(camera__in=access.cameras(user),organization__is_active=True).select_related('camera','camera__facility','organization','customer')
 def allowed(user,lot,operation):
@@ -109,16 +110,21 @@ def lot_detail(request,pk):
 
 @login_required
 def operation(request,pk,kind):
-    if kind not in ['dispatch','loss','transfer','payment','storage_bill']:raise PermissionDenied
+    if kind not in ['dispatch','loss','transfer','payment','storage_bill']:
+        raise PermissionDenied
     lot=get_object_or_404(visible_lots(request.user),pk=pk)
     access.authorize(request.user,lot.organization_id,lot.camera_id,{'loss':'dispatch','storage_bill':'finance'}.get(kind,kind))
     form=OperationForm(request.user,lot,kind,request.POST or None)
     preview=None
+    preview_token=None
     titles={'dispatch':'Yuk chiqarish','loss':'Yo‘qotishni qayd etish','transfer':'Qoldiqni boshqa kameraga ko‘chirish','payment':'To‘lov olish','storage_bill':'Saqlama hisobini yozish'}
     if request.method=='POST' and form.is_valid():
         try:
             if request.POST.get('confirm')=='yes':
-                op=act(request.user,pk,kind,form.cleaned_data)
+                expected=None
+                if kind=='dispatch':
+                    expected=verify_dispatch_token(request.user,lot,form.cleaned_data,request.POST.get('preview_token',''))
+                op=act(request.user,pk,kind,form.cleaned_data,expected_snapshot=expected)
                 messages.success(request,'Hujjat tasdiqlandi. Qoldiq va hisob yangilandi.')
                 return redirect('receipt',pk=op.pk)
             if kind in ['dispatch','loss','storage_bill']:
@@ -126,9 +132,14 @@ def operation(request,pk,kind):
                 preview=quote(lot,kind,d['date'],d.get('boxes',0),d.get('gross',ZERO),d.get('tare',ZERO))
                 preview['pay_now']=d.get('payment',ZERO)
                 preview['due_after']=max(ZERO,preview['due']-preview['pay_now'])
-            else:preview={'simple':True,'kind':kind,'data':form.cleaned_data}
-        except (ValidationError,PermissionDenied) as e:form_error(form,e)
-    return render(request,'warehouse/operation.html',context(request,form=form,lot=lot,title=titles[kind],kind=kind,preview=preview))
+                if kind=='dispatch':
+                    preview_token=make_dispatch_token(request.user,lot,d)
+            else:
+                preview={'simple':True,'kind':kind,'data':form.cleaned_data}
+        except (ValidationError,PermissionDenied) as e:
+            form_error(form,e)
+    return render(request,'warehouse/operation.html',context(request,form=form,lot=lot,title=titles[kind],
+                  kind=kind,preview=preview,preview_token=preview_token))
 
 @login_required
 @require_GET

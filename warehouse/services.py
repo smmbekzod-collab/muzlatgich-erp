@@ -35,6 +35,18 @@ def totals(lot):
     sums=lot.operations.aggregate(charged=Sum('charge'),paid=Sum('payment'))
     charged=sums['charged'] or ZERO;paid=sums['paid'] or ZERO
     return {'charged':charged,'paid':paid,'debt':max(ZERO,charged-paid),'advance':max(ZERO,paid-charged)}
+def dispatch_snapshot(lot):
+    """Signed preview inputs that must still hold while the lot is locked."""
+    balance = totals(lot)
+    return {
+        'camera':lot.camera_id, 'boxes':lot.boxes,
+        'gross':str(lot.gross), 'tare':str(lot.tare),
+        'storage_billed':str(lot.storage_billed),
+        'closed_on':lot.closed_on.isoformat() if lot.closed_on else None,
+        'last_stock_date':lot.last_stock_date.isoformat(),
+        'charged':str(balance['charged']), 'paid':str(balance['paid']),
+    }
+
 def pending(lot,as_of=None):
     as_of=as_of or timezone.localdate()
     if lot.closed_on or as_of<lot.received_on:return ZERO
@@ -87,7 +99,7 @@ def receive(user,data):
     return lot
 
 @transaction.atomic
-def act(user,lot_id,kind,data):
+def act(user,lot_id,kind,data,expected_snapshot=None):
     # Lock the lot before reading balances; duplicate submits reuse the committed operation.
     lot=Lot.objects.select_for_update().get(pk=lot_id)
     permission={'loss':'dispatch','storage_bill':'finance'}.get(kind,kind)
@@ -96,6 +108,8 @@ def act(user,lot_id,kind,data):
     if prior:
         if prior.lot_id!=lot.pk or prior.kind!=kind:raise ValidationError('Hujjat kaliti boshqa amal uchun ishlatilgan.')
         return prior
+    if expected_snapshot is not None and expected_snapshot != dispatch_snapshot(lot):
+        raise ValidationError('Partiya qoldig‘i yoki hisob holati o‘zgargan. Hisobni qayta ko‘rib, yana tasdiqlang.')
     day=data['date'];date_check(day,lot.last_stock_date)
     amount=ZERO;charge=ZERO;days=0;boxes=0;gross=ZERO;tare=ZERO;target_cam=None
     if kind in ['dispatch','loss','storage_bill']:
