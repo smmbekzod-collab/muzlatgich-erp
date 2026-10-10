@@ -368,3 +368,20 @@ button:focus-visible,.button:focus-visible,a:focus-visible { outline:3px solid #
 .setup-readiness-step:hover{border-color:#71b18e;text-decoration:none}
 .setup-readiness>.help{font-size:11px;color:#768675;line-height:1.5;margin:14px 0 0}
 @media(max-width:600px){.setup-readiness{padding:15px}.setup-readiness-top{display:block}.setup-readiness-top>strong{display:block;margin-top:10px}.setup-readiness-grid{grid-template-columns:1fr}}
+
+/* Platform pause and resume: one tap from the Super Admin page */
+.notification-pause-panel{border:1px solid #c9dcce;background:#fff;border-radius:16px;padding:20px;margin:20px 0}
+.notification-pause-heading h2{margin:5px 0;font-size:20px}.notification-pause-heading p{font-size:13px}
+.notification-pause-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:15px 0}
+.notification-pause-control{border:1px solid #dfe9e2;border-radius:13px;padding:17px;display:flex;flex-direction:column;gap:16px;justify-content:space-between;background:#fafdfb}
+.notification-pause-control h3{font-size:16px;margin:0 0 8px}
+.notification-pause-control p{font-size:12px;margin:0}
+.notification-live{color:#19744e}.notification-paused{color:#a46024}
+.notification-pause-control form{margin:0}.notification-pause-control button{width:100%;min-height:46px;font-weight:720;border-radius:9px}
+.notification-pause-control .notification-stop{background:#fff1e9;border:1px solid #deb9a0;color:#99522e}
+.notification-pause-control .notification-start{background:#1f805b;border:1px solid #1f805b;color:white}
+.notification-cost-note{font-size:12px;background:#f3f7f4;border:1px solid #d9e7dd;color:#596e5f;border-radius:9px;padding:12px 14px;line-height:1.6}
+.notification-route-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:end}
+.notification-route-controls form{margin:0}
+.notification-route-button{background:#f0f6f2;border:1px solid #d0e2d7;color:#286f4d;font-weight:700;font-size:12px;min-height:36px;border-radius:8px;padding:6px 12px}
+@media(max-width:730px){.notification-pause-grid{grid-template-columns:1fr}.notification-pause-panel{padding:15px}.notification-route-controls{justify-content:start;margin-top:10px}.telegram-route{display:block}}

@@ -6,6 +6,54 @@
 <p class="muted">Bitta bot barcha tashkilotlarga xizmat qiladi, ammo har birining guruhiga faqat o‘z hisoboti yuboriladi. Rejali hisobot: 08:00, 14:00, 20:00 (Toshkent).</p></div>
 <a class="button secondary" href="{% url 'director_monitor' %}">Rahbar paneli →</a>
 </section>
+
+<section class="notification-pause-panel" aria-labelledby="notification-switch-title">
+ <div class="notification-pause-heading">
+  <div><span class="eyebrow">PLATFORMA BO‘YICHA BOSH QO‘SHGICH</span>
+  <h2 id="notification-switch-title">Telegram yuborishni boshqarish</h2>
+  <p class="muted">TEST tugagach vaqtincha to‘xtating. Keyin shu yerdan bir bosishda qayta yoqishingiz mumkin.</p></div>
+ </div>
+ <div class="notification-pause-grid">
+  <article class="notification-pause-control">
+    <div><h3>08:00, 14:00, 20:00 hisobotlari</h3>
+      {% if notification_controls.reports_enabled %}
+      <p class="notification-live"><span aria-hidden="true">●</span> Faol — tashkilotlarning hisobotlari yuborilishi mumkin</p>
+      {% else %}
+      <p class="notification-paused"><span aria-hidden="true">●</span> To‘xtatilgan — yangi hisobot tayyorlanmaydi va yuborilmaydi</p>
+      {% endif %}
+    </div>
+    <form method="post">{% csrf_token %}
+      {% if notification_controls.reports_enabled %}
+        <input type="hidden" name="action" value="pause_reports">
+        <button class="notification-stop" type="submit">Hisobotlarni o‘chirish</button>
+      {% else %}
+        <input type="hidden" name="action" value="resume_reports">
+        <button class="notification-start" type="submit">Hisobotlarni yoqish</button>
+      {% endif %}
+    </form>
+  </article>
+  <article class="notification-pause-control">
+    <div><h3>Harorat va namlik ogohlantirishlari</h3>
+      {% if notification_controls.alerts_enabled %}
+      <p class="notification-live"><span aria-hidden="true">●</span> Faol — yangi xavf ogohlantirishlari yuboriladi</p>
+      {% else %}
+      <p class="notification-paused"><span aria-hidden="true">●</span> To‘xtatilgan — hatto xavf bo‘lsa ham guruhga xabar kelmaydi</p>
+      {% endif %}
+    </div>
+    <form method="post">{% csrf_token %}
+      {% if notification_controls.alerts_enabled %}
+        <input type="hidden" name="action" value="pause_alerts">
+        <button class="notification-stop" type="submit">Ogohlantirishlarni o‘chirish</button>
+      {% else %}
+        <input type="hidden" name="action" value="resume_alerts">
+        <button class="notification-start" type="submit">Ogohlantirishlarni yoqish</button>
+      {% endif %}
+    </form>
+  </article>
+ </div>
+ <p class="notification-cost-note">**Xarajat haqida:** tugmalar hisobotni hisoblashni va Telegram API yuborishini to‘xtatadi. Railway cron xizmatlari yoqilgan holda qoladi va reja bo‘yicha qisqa ishga tushish uchun oz miqdorda resurs sarflashi mumkin. Ularni Railway’da to‘liq to‘xtatish alohida amal bo‘lib, qayta yoqishda cron jadvalini ham tiklash kerak. Bu tugma Railway xizmatini o‘chirmaydi.</p>
+</section>
+
 <div class="telegram-status-grid">
  <article><span>Bot tokeni Railway’da</span>
    {% if bot_ready %}<strong class="telegram-ready">Sozlangan</strong>{% else %}<strong class="telegram-wait">Hali yo‘q</strong>{% endif %}
@@ -46,7 +94,18 @@
 {% for route in destinations %}
 <article class="telegram-route">
  <div><strong>{{ route.organization.name }}</strong><small>Chat ID: {{ route.chat_id }} · Hisobot: {% if route.daily_digest_enabled %}08:00 / 14:00 / 20:00{% else %}o‘chiq{% endif %} · Yangilangan: {{ route.updated_at|date:'d.m.Y H:i' }}</small></div>
- {% if route.enabled %}<span class="env-state env-good">Yoqqan</span>{% else %}<span class="env-state env-unknown">O‘chiq</span>{% endif %}
+ <div class="notification-route-controls">
+ {% if route.enabled %}<span class="env-state env-good">Telegram faol</span>{% else %}<span class="env-state env-unknown">Telegram o‘chiq</span>{% endif %}
+ <form method="post">{% csrf_token %}
+   <input type="hidden" name="action" value="toggle_org_reports">
+   <input type="hidden" name="organization_id" value="{{ route.organization_id }}">
+   {% if route.daily_digest_enabled %}
+   <button type="submit" class="notification-route-button">Hisobotni o‘chirish</button>
+   {% else %}
+   <button type="submit" class="notification-route-button">Hisobotni yoqish</button>
+   {% endif %}
+ </form>
+ </div>
 </article>
 {% empty %}<div class="empty-state"><h3>Hali chat sozlanmagan</h3><p>Yuqoridagi formadan yangi tashkilot manzilini kiriting.</p></div>{% endfor %}
 </div>

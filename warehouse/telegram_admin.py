@@ -55,6 +55,26 @@ def telegram_destinations(request):
             f'{"Uch mahal hisobotlar" if kind=="reports" else "Kamera ogohlantirishlari"} '
             f'{"yoqildi" if value else "vaqtincha to‘xtatildi"}.')
         return redirect('telegram_destinations')
+    if action=='toggle_org_reports':
+        org_id=request.POST.get('organization_id','')
+        if not org_id.isdecimal():
+            raise PermissionDenied('Noto‘g‘ri tashkilot raqami')
+        with transaction.atomic():
+            route=TelegramAlertDestination.objects.select_for_update().filter(
+                organization_id=int(org_id)).first()
+            if route is None:
+                raise PermissionDenied('Tashkilotning Telegram manzili topilmadi')
+            route.daily_digest_enabled=not route.daily_digest_enabled
+            route.updated_by=request.user
+            route.save(update_fields=['daily_digest_enabled','updated_by','updated_at'])
+            if not route.daily_digest_enabled:
+                DailyTelegramDigest.objects.filter(organization_id=route.organization_id,
+                    delivery_status__in=['pending','failed']).update(
+                    delivery_status='disabled',claimed_at=None,next_attempt_at=None,
+                    last_error='Tashkilot hisobotlari o‘chirilgan')
+        messages.success(request,f'{route.organization.name} uchun hisobotlar ' +
+                         ('yoqildi' if route.daily_digest_enabled else 'o‘chirildi'))
+        return redirect('telegram_destinations')
     form=TelegramDestinationForm(request.POST if request.method=='POST' else None)
     if request.method=='POST' and form.is_valid():
         data=form.cleaned_data
