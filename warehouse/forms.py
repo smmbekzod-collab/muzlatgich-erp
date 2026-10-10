@@ -106,3 +106,27 @@ class ExpenseForm(RequestForm):
     amount=forms.DecimalField(label='Summa, so‘m',min_value=1,max_digits=16,decimal_places=2)
     def __init__(self,user,*args,**kwargs):
         super().__init__(*args,**kwargs);self.fields['camera'].queryset=cameras(user).filter(is_active=True,organization__is_active=True)
+
+class CameraRentalForm(forms.Form):
+    camera=forms.ModelChoiceField(label='Ijara kamerasi',queryset=None)
+    customer=forms.ModelChoiceField(label='Ijarachi mijoz',queryset=Customer.objects.none())
+    start_on=forms.DateField(label='Ijara boshlanish sanasi',widget=forms.DateInput(attrs={'type':'date'}),initial=timezone.localdate)
+    end_on=forms.DateField(label='Ijara tugash sanasi (ixtiyoriy)',widget=forms.DateInput(attrs={'type':'date'}),required=False)
+    monthly_rate=forms.DecimalField(label='1 kamera uchun 1 oylik ijara, so‘m',min_value=Decimal('0.01'),
+        max_digits=16,decimal_places=2,initial=Decimal('20000000'),
+        widget=forms.NumberInput(attrs={'step':'0.01','inputmode':'decimal'}))
+    def __init__(self,user,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        from core.access import authorize
+        from django.core.exceptions import PermissionDenied
+        ids=[]
+        for cam in cameras(user).filter(is_active=True,organization__is_active=True):
+            try:authorize(user,cam.organization_id,cam.pk,'tariff');ids.append(cam.pk)
+            except PermissionDenied:pass
+        self.fields['camera'].queryset=cameras(user).filter(pk__in=ids)
+        self.fields['customer'].queryset=Customer.objects.filter(organization__in=organizations(user))
+    def clean(self):
+        d=super().clean()
+        if d.get('camera') and d.get('customer') and d['camera'].organization_id!=d['customer'].organization_id:
+            self.add_error('customer','Mijoz kamera tashkilotiga tegishli bo‘lishi kerak.')
+        return d
