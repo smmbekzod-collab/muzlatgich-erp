@@ -28,7 +28,7 @@ def send_message(token,chat_id,text):
     except urllib.error.HTTPError as err:
         # Never include the full URL or response text; that can expose the token.
         raise RuntimeError(f'Telegram HTTP {err.code}') from None
-    except (urllib.error.URLError,TimeoutError):
+    except (urllib.error.URLError,TimeoutError,OSError):
         raise RuntimeError('Telegram ulanishi uzildi') from None
 
 
@@ -60,7 +60,6 @@ def drain_alerts(limit=30,now=None):
                         Q(delivery_status='sending',claimed_at__lte=now-timedelta(minutes=3)))
                 .filter(Q(next_attempt_at__lte=now)|Q(next_attempt_at__isnull=True))
                 .filter(attempts__lt=5)
-                .select_related('camera__organization','camera__facility')
                 .order_by('opened_at','pk').first())
             if chosen is None:break
             chosen.delivery_status='sending'
