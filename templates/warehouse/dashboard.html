@@ -28,7 +28,7 @@
 <section aria-labelledby="camera-title">
   <div class="section-heading">
     <div><h2 id="camera-title">Kameralar bandligi</h2><p class="muted">Brutto vazn va ruxsat etilgan sig‘imga nisbatan.</p></div>
-    {% if request.user.is_superuser %}<a class="text-link" href="{% url 'admin:core_facility_changelist' %}">Filiallarni boshqarish →</a>{% endif %}
+    <div class="overview-actions"><a class="text-link" href="{% url 'monitor_overview' %}">Harorat va namlik nazorati →</a>{% if request.user.is_superuser %}<a class="text-link" href="{% url 'admin:core_facility_changelist' %}">Filiallarni boshqarish →</a>{% endif %}</div>
   </div>
   <div class="camera-grid">
     {% for row in summary %}
@@ -74,16 +74,17 @@
     <div class="filter-buttons"><button type="submit">Ko‘rsatish</button><a class="button secondary" href="{% url 'dashboard' %}">Tozalash</a></div>
   </form>
   <div class="tablebox responsive-table">
-    <table><thead><tr><th>Partiya</th><th>Mijoz / mahsulot</th><th>Filial / kamera</th><th>Kirim</th><th class="num">Yashik</th><th class="num">Sof kg</th><th>Holat</th></tr></thead>
+    <table><thead><tr><th>Partiya</th><th>Mijoz / mahsulot</th><th>Filial / kamera</th><th>Kirim</th><th class="num">Kun</th><th class="num">Yashik</th><th class="num">Sof kg</th><th>Holat</th></tr></thead>
       <tbody>{% for lot in lots %}
       <tr><td data-label="Partiya"><a class="lot-code" href="{% url 'lot' lot.pk %}">{{ lot.short_id }}</a></td>
         <td data-label="Mijoz"><a class="lot-owner" href="{% url 'lot' lot.pk %}">{{ lot.customer.name }}</a><div class="muted">{{ lot.product }}{% if lot.variety %} · {{ lot.variety }}{% endif %}</div></td>
         <td data-label="Filial / kamera">{{ lot.camera.facility.name|default:'Asosiy ombor' }}<div class="muted">{{ lot.camera.number }}-kamera</div></td>
         <td data-label="Kirim">{{ lot.received_on|date:'d.m.Y' }}</td>
+        <td data-label="Kun" class="num">{{ lot.current_stay_days }}</td>
         <td data-label="Yashik" class="num">{{ lot.boxes }}</td><td data-label="Sof kg" class="num">{{ lot.net|floatformat:1 }}</td>
         <td data-label="Holat">{% if lot.closed_on %}<span class="tag closed">Yopilgan</span>{% else %}<span class="tag">Omborda</span>{% endif %}</td>
       </tr>{% empty %}
-      <tr><td colspan="7"><div class="table-empty">Tanlangan filtr bo‘yicha yuk topilmadi. <a href="{% url 'dashboard' %}">Filtrlarni tozalash</a></div></td></tr>
+      <tr><td colspan="8"><div class="table-empty">Tanlangan filtr bo‘yicha yuk topilmadi. <a href="{% url 'dashboard' %}">Filtrlarni tozalash</a></div></td></tr>
       {% endfor %}</tbody>
     </table>
   </div>

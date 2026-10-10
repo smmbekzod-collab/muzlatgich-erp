@@ -1,0 +1,86 @@
+{% extends 'warehouse/base.html' %}
+{% block title %}{{ camera.number }}-kamera kuzatuvi · Muzlatgich ERP{% endblock %}
+{% block content %}
+<div class="env-detail-header">
+  <a href="{% url 'monitor_overview' %}" class="back-link">← Kameralar monitoringi</a>
+  <div class="eyebrow">{{ camera.organization.name }} / {{ camera.facility.name|default:'Asosiy ombor' }}</div>
+  <h1>{{ camera.number }}-kamera: nazorat jurnali</h1>
+  <p class="muted">O‘lchovlar qo‘lda kiritiladi. Datchiklardan real vaqtda ma’lumot olinmayapti.</p>
+</div>
+<div class="env-summary">
+  <article class="env-summary-main">
+    <span>So‘nggi qayd bo‘yicha holat</span><div class="env-state env-{{ summary.state }}">{{ summary.label }}</div>
+    {% if summary.reading %}<strong>{{ summary.reading.temperature|floatformat:1 }}°C <small>·</small> {{ summary.reading.humidity|floatformat:1 }}%</strong>
+      <p>{{ summary.reading.measured_at|date:'d.m.Y H:i' }} dagi qo‘lda o‘lchov</p>
+    {% else %}<strong>Hali o‘lchov yo‘q</strong>{% endif %}
+  </article>
+  <article class="env-summary-secondary"><span>Eng eski ochiq partiya</span>
+    <strong>{% if summary.storage_days %}{{ summary.storage_days }} kun{% else %}—{% endif %}</strong>
+    <p>{% if policy.max_storage_days %}Nazorat chegarasi: {{ policy.max_storage_days }} kun{% else %}Muddat chegarasi belgilanmagan{% endif %}</p>
+  </article>
+</div>
+{% if summary.issues %}
+<section class="env-alert-panel" role="status"><h2>Diqqat talab etiladi</h2>
+ {% for issue in summary.issues %}<p><span aria-hidden="true">!</span> {{ issue }}</p>{% endfor %}
+</section>{% endif %}
+<div class="env-detail-forms">
+  <section class="card env-entry-card">
+    <h2>Yangi o‘lchov</h2><p class="muted">Omborchi harorat va namlikni o‘lchab jurnalga kiritadi.</p>
+    {% if can_record and camera.is_active %}
+    <form method="post" class="env-form">{% csrf_token %}<input type="hidden" name="action" value="reading">
+      {{ reading_form.non_field_errors }}
+      {% for field in reading_form.visible_fields %}
+      <div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}</div>
+      {% endfor %}
+      <button type="submit">O‘lchovni jurnalga saqlash</button>
+    </form>
+    {% else %}<p class="notice warning">Ushbu kameraga o‘lchov kiritish huquqingiz yo‘q yoki kamera faol emas.</p>{% endif %}
+  </section>
+  <section class="card env-settings-card">
+    <h2>Me’yorlar va ogohlantirishlar</h2>
+    <p class="muted">Har bir tashkilot/kamera uchun alohida sozlanadi. Me’yorlar berilmasa, tizim xavfsiz intervalni o‘zi taxmin qilmaydi.</p>
+    {% if can_configure %}
+    <form method="post" class="env-form">{% csrf_token %}<input type="hidden" name="action" value="policy">
+      {{ policy_form.non_field_errors }}
+      {% for field in policy_form.visible_fields %}
+      <div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}</div>
+      {% endfor %}
+      <button type="submit">Me’yorlarni saqlash</button>
+    </form>
+    {% else %}
+      <dl class="env-settings-values">
+        <div><dt>Harorat (°C)</dt><dd>{{ policy.min_temperature|default_if_none:'—' }} / {{ policy.max_temperature|default_if_none:'—' }}</dd></div>
+        <div><dt>Namlik (%)</dt><dd>{{ policy.min_humidity|default_if_none:'—' }} / {{ policy.max_humidity|default_if_none:'—' }}</dd></div>
+        <div><dt>Tekshiruv oralig‘i</dt><dd>{% if policy %}{{ policy.check_interval_hours }} soat{% else %}—{% endif %}</dd></div>
+      </dl>
+      <p class="help">Me’yorlarni o‘zgartirish faqat tarif boshqarish huquqli administratorga ruxsat etiladi.</p>
+    {% endif %}
+  </section>
+</div>
+<section class="env-lots-section" aria-labelledby="env-lot-title">
+  <div class="section-heading"><div><h2 id="env-lot-title">Kameradagi mahsulotlar</h2><p class="muted">Eng eski 50 ta ochiq partiya. Kunlar yuk qabul qilingan sanadan boshlab hisoblanadi.</p></div></div>
+  <div class="tablebox responsive-table"><table><thead><tr><th>Partiya</th><th>Mahsulot / mijoz</th><th>Kirim</th><th class="num">Muddati</th><th>Holat</th></tr></thead>
+    <tbody>{% for lot in lots %}
+    <tr>
+      <td data-label="Partiya"><a href="{% url 'lot' lot.pk %}">{{ lot.short_id }}</a></td>
+      <td data-label="Mahsulot">{{ lot.product }}<div class="muted">{{ lot.customer.name }}</div></td>
+      <td data-label="Kirim">{{ lot.received_on|date:'d.m.Y' }}</td>
+      <td data-label="Muddati" class="num">{{ lot.current_stay_days }} kun</td>
+      <td data-label="Holat">{% if lot.age_warning %}<span class="env-state env-alert">Nazorat chegarasi oshgan</span>{% else %}<span class="env-state env-unknown">Kuzatuv</span>{% endif %}</td>
+    </tr>{% empty %}<tr><td colspan="5">Ochiq partiya yo‘q.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+<section class="env-history">
+ <div class="section-heading"><div><h2>O‘lchovlar tarixi</h2><p class="muted">Oxirgi 35 ta qayd, o‘zgartirilmaydigan jurnal.</p></div></div>
+ <div class="tablebox responsive-table"><table><thead><tr><th>Sana / vaqt</th><th>Harorat</th><th>Namlik</th><th>Mas’ul</th><th>Izoh</th></tr></thead>
+ <tbody>{% for item in history %}
+ <tr><td data-label="Vaqt">{{ item.measured_at|date:'d.m.Y H:i' }}</td>
+ <td data-label="Harorat">{{ item.temperature|floatformat:1 }}°C</td>
+ <td data-label="Namlik">{{ item.humidity|floatformat:1 }}%</td>
+ <td data-label="Mas’ul">{{ item.recorded_by.username }}</td>
+ <td data-label="Izoh">{{ item.note|default:'—' }}</td></tr>
+ {% empty %}<tr><td colspan="5">Hozircha o‘lchov yo‘q.</td></tr>{% endfor %}
+ </tbody></table></div>
+</section>
+<div class="env-disclaimer">Diqqat: kunlar bo‘yicha ko‘rsatkich hisob va kuzatuv uchun. Bu laboratoriya ekspertizasi, yaroqlilik muddati yoki sanitariya xulosasi emas.</div>
+{% endblock %}

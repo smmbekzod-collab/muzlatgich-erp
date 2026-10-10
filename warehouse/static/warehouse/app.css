@@ -257,3 +257,62 @@ button:focus-visible,.button:focus-visible,a:focus-visible { outline:3px solid #
 .staff-toggle button{font-size:12px;min-height:40px;padding:9px 12px}
 @media(max-width:940px){.staff-grid{grid-template-columns:1fr}.staff-guidance{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.staff-guidance h2,.staff-guidance .staff-security{grid-column:1/-1}.staff-role{padding:8px}}
 @media(max-width:600px){.staff-help{gap:6px}.staff-help>div{padding:10px 8px}.staff-help strong{font-size:10px;gap:4px}.staff-help strong span{width:20px;height:20px}.staff-help small{display:none}.staff-create{padding:17px}.staff-create .setup-form{grid-template-columns:1fr;gap:13px}.staff-guidance{grid-template-columns:1fr;padding:17px}.staff-guidance h2,.staff-guidance .staff-security{grid-column:auto}.staff-cards{grid-template-columns:1fr}.staff-filter>div{display:grid;grid-template-columns:minmax(0,1fr) auto}}
+
+
+/* Per-camera environment journal: responsive and readable inside cold storage facilities. */
+.env-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:20px 0}
+.env-kpis article{background:white;border:1px solid #dbe9e0;padding:17px 20px;border-radius:14px}
+.env-kpis article span{display:block;font-size:12px;color:#698577;font-weight:650}
+.env-kpis article strong{display:block;font-size:30px;letter-spacing:-.6px;font-variant-numeric:tabular-nums}
+.env-filter{display:flex;align-items:end;gap:10px;flex-wrap:wrap;background:white;border:1px solid #dbe9e0;border-radius:14px;padding:14px;margin:18px 0}
+.env-filter label{font-size:12px;font-weight:710;color:#557461}
+.env-filter select{min-width:205px;flex:1}
+.env-filter button,.env-filter .button{min-height:44px}
+.env-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:15px;margin-bottom:24px}
+.env-card{padding:20px;border:1px solid #dce9e1;border-radius:16px;background:white;min-width:0;display:flex;flex-direction:column;gap:16px}
+.env-card-top{display:flex;align-items:start;justify-content:space-between;gap:10px}
+.env-card-top h2{font-size:18px;margin:7px 0 0}
+.env-card-top .eyebrow{font-size:10px;letter-spacing:.6px}
+.env-state{display:inline-block;font-size:11px;font-weight:760;padding:6px 9px;border-radius:8px;max-width:165px;line-height:1.4;text-align:center}
+.env-alert{background:#fff0e7;color:#ac4620}
+.env-good{background:#e6f4eb;color:#176847}
+.env-missing,.env-unknown{background:#eef2ef;color:#66786e}
+.env-reading-values{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.env-reading-values>div{border:1px solid #e8eee9;border-radius:10px;padding:12px}
+.env-reading-values span{display:block;font-size:12px;color:#718a7b}
+.env-reading-values strong{display:block;font-size:27px;font-variant-numeric:tabular-nums;letter-spacing:-.7px}
+.env-facts{display:grid;gap:5px;font-size:12px;color:#64806f}
+.env-warnings{padding:11px;border:1px solid #f0d2b4;background:#fff9f3;color:#89451b;border-radius:10px}
+.env-warnings p{margin:3px 0;font-size:12px}
+.env-warnings p span,.env-alert-panel p span{font-weight:900;padding-right:4px}
+.env-card-link{margin-top:auto;padding-top:13px;border-top:1px solid #eaf1ec;font-weight:720;font-size:13px}
+.env-pagination{display:flex;justify-content:center;align-items:center;gap:12px;margin:20px 0}
+.env-pagination a{font-weight:720;background:white;border:1px solid #d9e8dc;border-radius:9px;padding:9px}
+.env-disclaimer{font-size:12px;color:#6c7e74;border-left:3px solid #9ec5af;background:#f0f5f2;padding:12px 15px;border-radius:7px;margin:20px 0}
+.env-detail-header{margin:0 0 20px}
+.env-summary{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px}
+.env-summary article{border-radius:15px;padding:20px;background:white;border:1px solid #dde9df}
+.env-summary article>span{display:block;color:#637e6f;font-size:12px;font-weight:730}
+.env-summary article strong{display:block;font-size:29px;margin:8px 0;font-variant-numeric:tabular-nums}
+.env-summary article strong small{font-size:14px;color:#749284}
+.env-summary article .env-state{margin-top:9px}
+.env-summary article p{color:#718476;font-size:12px;margin:5px 0}
+.env-alert-panel{background:#fff5ea;border:1px solid #f0d6b5;color:#94501d;border-radius:14px;padding:15px 19px;margin:18px 0}
+.env-alert-panel h2{font-size:17px}
+.env-alert-panel p{font-size:13px;margin:7px 0}
+.env-detail-forms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:16px;margin:20px 0 30px}
+.env-detail-forms>.card{padding:23px;min-width:0}
+.env-detail-forms h2{font-size:20px}
+.env-detail-forms p.muted{font-size:13px}
+.env-form{display:grid;gap:13px;margin-top:18px}
+.env-form label{display:block;font-size:12px;font-weight:700;color:#536f5f;margin-bottom:6px}
+.env-form input,.env-form textarea{min-width:0;width:100%;min-height:44px}
+.env-form .help{display:block;font-size:11px;line-height:1.4;margin-top:5px}
+.env-form button{margin-top:9px;min-height:50px}
+.env-settings-values div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #e8efe9;padding:10px 0}
+.env-settings-values dt{color:#66806f;font-size:13px}
+.env-settings-values dd{font-weight:730;margin:0}
+.env-lots-section,.env-history{margin:29px 0}
+@media(max-width:920px){.env-detail-forms{grid-template-columns:1fr}}
+@media(max-width:600px){.env-kpis{gap:8px}.env-kpis article{padding:12px}.env-kpis article span{font-size:10px}.env-kpis article strong{font-size:24px}.env-grid{grid-template-columns:1fr}.env-filter{display:grid;grid-template-columns:1fr 1fr}.env-filter label,.env-filter select{grid-column:1/-1;width:100%}.env-summary{grid-template-columns:1fr}.env-detail-forms>.card{padding:16px}.env-reading-values strong{font-size:24px}}
+@media print{.env-filter,.env-form,.env-pagination,.env-card-link{display:none!important}.env-card{break-inside:avoid}}

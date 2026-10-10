@@ -4,6 +4,7 @@
   <div class="nav-group-label">OMBOR</div>
   <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="nav-current" aria-current="page"{% endif %}>▦ &nbsp; Omborlar va yuklar</a>
   <a href="{% url 'scanner' %}" {% if request.resolver_match.url_name == 'scanner' %}class="nav-current" aria-current="page"{% endif %}>▧ &nbsp; QR skaner</a>
+  <a href="{% url 'monitor_overview' %}" {% if request.resolver_match.url_name == 'monitor_overview' or request.resolver_match.url_name == 'monitor_camera' %}class="nav-current" aria-current="page"{% endif %}>◉ &nbsp; Harorat va namlik</a>
   <a href="{% url 'intake' %}" {% if request.resolver_match.url_name == 'intake' %}class="nav-current" aria-current="page"{% endif %}>＋ &nbsp; Yuk qabul qilish</a>
   <a href="{% url 'customers' %}" {% if request.resolver_match.url_name == 'customers' %}class="nav-current" aria-current="page"{% endif %}>♙ &nbsp; Mijozlar</a>
   <div class="nav-group-label">HISOB-KITOB</div>

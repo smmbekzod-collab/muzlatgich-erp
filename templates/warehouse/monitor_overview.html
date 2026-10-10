@@ -1,0 +1,51 @@
+{% extends 'warehouse/base.html' %}
+{% block title %}Harorat va namlik · Muzlatgich ERP{% endblock %}
+{% block content %}
+<section class="overview-head">
+  <div><div class="eyebrow">OMBOR / QO‘LDA MONITORING</div><h1>Harorat va namlik</h1>
+    <p class="muted">Har bir kameradagi oxirgi o‘lchovlar va belgilangan chegaralar. Hozircha IoT datchik ulanmagan.</p></div>
+  <a class="button secondary" href="{% url 'dashboard' %}">← Ombor bosh sahifasi</a>
+</section>
+<section class="env-kpis" aria-label="Sahifadagi kameralar holati">
+  <article><span>Ko‘rsatilgan kameralar</span><strong>{{ camera_count }}</strong></article>
+  <article><span>O‘lchov mavjud</span><strong>{{ observed_count }}</strong></article>
+  <article><span>Ogohlantirishlar</span><strong>{{ warning_count }}</strong></article>
+</section>
+<form method="get" class="env-filter">
+ <label for="env-organization">Tashkilot</label>
+ <select name="organization" id="env-organization"><option value="">Barcha ruxsat berilgan tashkilotlar</option>
+  {% for org in organizations %}<option value="{{ org.pk }}" {% if selected_org == org.pk|stringformat:'s' %}selected{% endif %}>{{ org.name }}</option>{% endfor %}
+ </select>
+ <button type="submit">Filtrlash</button><a class="button secondary" href="{% url 'monitor_overview' %}">Tozalash</a>
+</form>
+<div class="env-grid">
+{% for item in rows %}
+<article class="env-card">
+  <div class="env-card-top"><div><span class="eyebrow">{{ item.camera.organization.name }} / {{ item.camera.facility.name|default:'Asosiy ombor' }}</span><h2>№{{ item.camera.number }} kamera</h2></div>
+   <span class="env-state env-{{ item.state }}">{{ item.label }}</span></div>
+  <div class="env-reading-values">
+   <div><span>Harorat</span><strong>{% if item.reading %}{{ item.reading.temperature|floatformat:1 }}°C{% else %}—{% endif %}</strong></div>
+   <div><span>Namlik</span><strong>{% if item.reading %}{{ item.reading.humidity|floatformat:1 }}%{% else %}—{% endif %}</strong></div>
+  </div>
+  <div class="env-facts">
+    <span>{% if item.reading %}O‘lchangan: {{ item.reading.measured_at|date:'d.m.Y H:i' }}{% else %}O‘lchov kiritilmagan{% endif %}</span>
+    <span>{% if item.storage_days %}Eng eski yuk: {{ item.storage_days }} kun{% else %}Omborda ochiq yuk yo‘q{% endif %}</span>
+  </div>
+  {% if item.issues %}<div class="env-warnings" role="status">
+    {% for issue in item.issues %}<p><span aria-hidden="true">!</span> {{ issue }}</p>{% endfor %}
+  </div>{% endif %}
+  <a class="env-card-link" href="{% url 'monitor_camera' item.camera.pk %}">O‘lchov va me’yorlarni ko‘rish →</a>
+</article>
+{% empty %}
+<div class="empty-state"><h3>Kameralar topilmadi</h3>
+  <p>Ruxsat yoki tashkilot filtrini tekshiring.</p></div>
+{% endfor %}
+</div>
+{% if page.has_other_pages %}
+<nav class="env-pagination" aria-label="Kameralar sahifalari">
+ {% if page.has_previous %}<a href="?organization={{ selected_org }}&page={{ page.previous_page_number }}">← Oldingi</a>{% endif %}
+ <span>{{ page.number }} / {{ page.paginator.num_pages }}</span>
+ {% if page.has_next %}<a href="?organization={{ selected_org }}&page={{ page.next_page_number }}">Keyingi →</a>{% endif %}
+</nav>{% endif %}
+<div class="env-disclaimer">Bu qo‘lda kiritiladigan kuzatuv jurnali. Belgilangan chegaralar tashkilot tomonidan tasdiqlanadi. Ogohlantirishlar mahsulot sifati, yaroqliligi yoki xavfsizligini kafolatlamaydi.</div>
+{% endblock %}
