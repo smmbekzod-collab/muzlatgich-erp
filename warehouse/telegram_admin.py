@@ -48,7 +48,8 @@ def telegram_destinations(request):
         'organization','updated_by').order_by('organization__name')[:150])
     return render(request,'warehouse/telegram_admin.html',{
         'today':timezone.localdate(),'form':form,'destinations':destinations,
-        'bot_ready':bool(os.environ.get('TELEGRAM_BOT_TOKEN','').strip()),
+        'bot_ready':bool(os.environ.get('TELEGRAM_BOT_TOKEN','').strip() or
+                         os.environ.get('TELEGRAM_BOT_CONFIGURED','') == '1'),
         'configured_count':TelegramAlertDestination.objects.filter(enabled=True).count(),
         'pending_count':CameraEnvironmentAlert.objects.filter(delivery_status__in=['pending','failed']).count(),
     })
