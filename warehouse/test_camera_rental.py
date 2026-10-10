@@ -151,6 +151,7 @@ class CameraRentalTests(TestCase):
     def test_close_empty_contract_and_allow_next_renter(self):
         agreement=self.agreement()
         close_camera_rental(self.admin,agreement.pk,date(2026,10,10))
+        agreement.refresh_from_db()
         self.assertEqual(agreement.end_on,date(2026,10,10))
         newer=open_camera_rental(self.admin,{'camera':self.cam,'customer':self.customer,
             'start_on':date(2026,10,11),'monthly_rate':D('22000000'),'end_on':None})
