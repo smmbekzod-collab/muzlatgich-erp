@@ -94,3 +94,5 @@ button:focus-visible,.button:focus-visible,a:focus-visible { outline:3px solid #
   .responsive-table tr td[colspan]::before { display:none; }
 }
 @media print { .filter-panel,.overview-actions,.camera-open { display:none!important; } .kpi-card,.camera-card { break-inside:avoid; box-shadow:none; } .shell { display:block; } }
+
+.over-capacity {color:#b35f21; font-weight:800;}

@@ -42,6 +42,12 @@ class FacilityTests(TestCase):
         with self.assertRaises(ValidationError):
             Camera.objects.create(organization=self.org, facility=self.foreign_branch, number=5)
 
+    def test_same_camera_number_in_different_branches_is_allowed(self):
+        same_number = Camera.objects.create(organization=self.org, facility=self.branch2, number=1)
+        self.assertEqual(same_number.number, self.c1.number)
+        with self.assertRaises(ValidationError):
+            Camera.objects.create(organization=self.org, facility=self.branch1, number=1)
+
     def test_legacy_camera_gets_default_facility(self):
         cam = Camera.objects.create(organization=self.org, number=6)
         self.assertEqual(cam.facility.organization_id, self.org.pk)

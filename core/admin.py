@@ -53,6 +53,7 @@ class OrganizationAdmin(ScopedAdmin):
 
 @admin.register(Facility,site=site)
 class FacilityAdmin(ScopedAdmin):
+    autocomplete_fields = ['organization']
     list_display = ['organization','name','region','district','code','is_active']
     list_filter = ['organization','region','is_active']
     search_fields = ['name','region','district','address','organization__name']
@@ -61,6 +62,7 @@ class FacilityAdmin(ScopedAdmin):
 
 @admin.register(Camera,site=site)
 class CameraAdmin(ScopedAdmin):
+    autocomplete_fields = ['organization','facility']
     list_display = ['organization','facility','number','name','capacity_kg','is_active']
     list_filter = ['organization','facility','is_active']
     search_fields = ['name','organization__name','facility__name']

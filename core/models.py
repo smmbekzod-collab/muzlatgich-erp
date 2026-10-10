@@ -65,7 +65,7 @@ class Camera(models.Model):
         verbose_name = 'Muzlatgich kamerasi'
         verbose_name_plural = 'Muzlatgich kameralari'
         ordering = ['organization_id','facility_id','number']
-        constraints = [models.UniqueConstraint(fields=['organization','number'],name='unique_camera_number_per_org')]
+        constraints = [models.UniqueConstraint(fields=['organization','facility','number'],name='unique_camera_number_per_facility')]
     def __str__(self): return f'{self.facility.name if self.facility_id else self.organization.name} / {self.number}-kamera'
     def clean(self):
         if not self.organization_id:return

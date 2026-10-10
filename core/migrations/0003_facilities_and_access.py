@@ -40,4 +40,6 @@ class Migration(migrations.Migration):
         migrations.AddField(model_name='membership', name='facilities', field=models.ManyToManyField(blank=True, to='core.facility', verbose_name='Ruxsat berilgan filiallar')),
         migrations.AlterModelOptions(name='camera', options={'ordering':['organization_id','facility_id','number'],'verbose_name':'Muzlatgich kamerasi','verbose_name_plural':'Muzlatgich kameralari'}),
         migrations.RunPython(backfill_main_facility, keep_existing_facilities),
+        migrations.RemoveConstraint(model_name='camera', name='unique_camera_number_per_org'),
+        migrations.AddConstraint(model_name='camera', constraint=models.UniqueConstraint(fields=('organization','facility','number'), name='unique_camera_number_per_facility')),
     ]

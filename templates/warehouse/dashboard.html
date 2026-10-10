@@ -31,14 +31,14 @@
           <h3>{{ row.camera.number }}-kamera{% if row.camera.name %} · {{ row.camera.name }}{% endif %}</h3>
           <p class="camera-location">{{ row.camera.facility.name|default:'Asosiy ombor' }}</p>
         </div>
-        <span class="status-dot {% if not row.camera.is_active %}status-paused{% elif row.fill_percent >= 100 %}status-full{% endif %}" aria-label="{% if not row.camera.is_active %}Faol emas{% else %}Kamera holati{% endif %}"></span>
+        <span class="status-dot {% if not row.camera.is_active %}status-paused{% elif row.utilization_percent >= 100 %}status-full{% endif %}" aria-label="{% if not row.camera.is_active %}Faol emas{% else %}Kamera holati{% endif %}"></span>
       </div>
       <div class="camera-stat-row">
         <div><span class="camera-stat-value">{{ row.net|floatformat:1 }}</span><span class="camera-stat-unit"> kg sof</span></div>
         <span class="camera-stat-count">{{ row.boxes }} yashik</span>
       </div>
       {% if row.fill_percent != None %}
-      <div class="capacity-head"><span>Bandlik</span><strong>{{ row.fill_percent }}%</strong></div>
+      <div class="capacity-head"><span>Bandlik</span><strong>{% if row.utilization_percent > 100 %}<span class="over-capacity">{{ row.utilization_percent }}% · ortiqcha</span>{% else %}{{ row.utilization_percent }}%{% endif %}</strong></div>
       <div class="capacity-track" role="progressbar" aria-label="{{ row.camera.number }}-kamera bandligi" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ row.fill_percent }}"><span style="width:{{ row.fill_percent }}%"></span></div>
       <div class="camera-meta"><span>Sig‘im: {{ row.capacity|floatformat:0 }} kg</span><span>Bo‘sh: {{ row.free_kg|floatformat:0 }} kg</span></div>
       {% else %}
@@ -62,7 +62,7 @@
   <form class="filter-panel" method="get" aria-label="Partiyalar filtri">
     <div class="filter-item filter-search"><label for="q">Qidirish</label><input id="q" type="search" name="q" placeholder="Mijoz yoki meva nomi..." value="{{ query }}"></div>
     <div class="filter-item"><label for="facility">Filial</label><select id="facility" name="facility"><option value="">Barcha filiallar</option>{% for f in facility_options %}<option value="{{ f.pk }}" {% if selected_facility == f.pk|stringformat:'s' %}selected{% endif %}>{{ f.organization.name }} — {{ f.name }}</option>{% endfor %}</select></div>
-    <div class="filter-item"><label for="camera">Kamera</label><select id="camera" name="camera"><option value="">Barcha kameralar</option>{% for cam in camera_options %}<option value="{{ cam.pk }}" {% if selected == cam.pk|stringformat:'s' %}selected{% endif %}>{{ cam.facility.name|default:cam.organization.name }} / {{ cam.number }}</option>{% endfor %}</select></div>
+    <div class="filter-item"><label for="camera">Kamera</label><select id="camera" name="camera"><option value="">Barcha kameralar</option>{% for cam in camera_options %}<option value="{{ cam.pk }}" data-facility="{{ cam.facility_id }}" {% if selected == cam.pk|stringformat:'s' %}selected{% endif %}>{{ cam.facility.name|default:cam.organization.name }} / {{ cam.number }}</option>{% endfor %}</select></div>
     <div class="filter-item"><label for="status">Holat</label><select id="status" name="status"><option value="open" {% if status == 'open' %}selected{% endif %}>Ombordagi yuklar</option><option value="all" {% if status == 'all' %}selected{% endif %}>Barcha yuklar</option></select></div>
     <div class="filter-buttons"><button type="submit">Ko‘rsatish</button><a class="button secondary" href="{% url 'dashboard' %}">Tozalash</a></div>
   </form>
@@ -82,4 +82,25 @@
   </div>
   <p class="help">Ro‘yxatda eng so‘nggi 300 ta mos partiya ko‘rsatiladi. Kamera kartalaridagi qoldiq qidiruv matniga emas, filial/kamera filtriga asoslanadi.</p>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const facility = document.getElementById('facility');
+  const camera = document.getElementById('camera');
+  if (!facility || !camera) return;
+  function syncCameras() {
+    const chosen = facility.value;
+    for (const option of camera.options) {
+      const visible = !option.value || !chosen || option.dataset.facility === chosen;
+      option.hidden = !visible;
+      option.disabled = !visible;
+    }
+    if (camera.selectedOptions.length && camera.selectedOptions[0].disabled) camera.value = '';
+  }
+  facility.addEventListener('change', syncCameras);
+  syncCameras();
+})();
+</script>
 {% endblock %}

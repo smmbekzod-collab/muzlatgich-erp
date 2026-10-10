@@ -68,9 +68,11 @@ def dashboard(request):
         total_net += net
         total_gross += gross
         capacity = cam.capacity_kg
-        fullness = min(100, int(gross * 100 / capacity)) if capacity and capacity > 0 else None
+        usage = int(gross * 100 / capacity) if capacity and capacity > 0 else None
+        fullness = min(100, usage) if usage is not None else None
         summary.append({'camera':cam, 'boxes':boxes, 'gross':gross, 'net':net,
                         'lot_count':values.get('lot_count') or 0, 'fill_percent':fullness,
+                        'utilization_percent':usage,
                         'capacity':capacity, 'free_kg':max(ZERO, capacity - gross) if capacity is not None else None})
 
     lots = visible_lots(request.user).filter(camera_id__in=camera_ids)
