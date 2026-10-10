@@ -127,7 +127,7 @@ def monitor_camera(request,camera_id):
     oldest=lots[0].received_on if lots else None
     outcome=assess_camera(camera,existing,recent,oldest)
     for lot in lots:
-        lot.current_stay_days=max(1,(timezone.localdate()-lot.received_on).days+1)
+        # Lot.current_stay_days is a computed read-only model property.
         lot.age_warning=bool(existing and existing.max_storage_days is not None
                              and lot.current_stay_days>existing.max_storage_days)
     return render(request,'warehouse/monitor_camera.html',{
