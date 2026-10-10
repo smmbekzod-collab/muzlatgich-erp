@@ -10,6 +10,21 @@ from core.models import Camera
 from .models import Lot,Operation,Tariff,Customer
 
 ZERO=Decimal('0')
+TIER_FIELDS=('tier_1_10','tier_11_15','tier_16_25','tier_26_30','tier_31_plus')
+
+def tiered_rate(lot, days):
+    """Full one-time per-kg price based on total age, not an accumulating daily fee."""
+    age = max(1,days)
+    field = ('tier_1_10' if age<=10 else 'tier_11_15' if age<=15 else
+             'tier_16_25' if age<=25 else 'tier_26_30' if age<=30 else 'tier_31_plus')
+    rate=getattr(lot,field)
+    if rate is None:
+        raise ValidationError('Muddatga ko‘ra tarifning barcha bosqichlari belgilanishi kerak.')
+    return rate
+
+def tiered_days(start, on):
+    return max(1,(on-start).days+1)
+
 def money(value):return Decimal(value).quantize(Decimal('1'),rounding=ROUND_HALF_UP)
 def date_check(day,start):
     if day<start:raise ValidationError('Sana oldingi harakat yoki kirim sanasidan oldin bo‘lishi mumkin emas.')
@@ -51,6 +66,9 @@ def pending(lot,as_of=None):
     as_of=as_of or timezone.localdate()
     if lot.closed_on or as_of<lot.received_on:return ZERO
     if lot.service=='storage':return max(ZERO,storage_total(lot,as_of)-lot.storage_billed)
+    if lot.service=='tiered':
+        kg=lot.gross if lot.basis=='gross' else lot.net
+        return money(kg*tiered_rate(lot,tiered_days(lot.received_on,as_of)))
     kg=lot.gross if lot.basis=='gross' else lot.net
     return money(kg*lot.rate*((as_of-lot.received_on).days+1))
 def quote(lot,kind,day,boxes=0,gross=ZERO,tare=ZERO):
@@ -67,7 +85,12 @@ def quote(lot,kind,day,boxes=0,gross=ZERO,tare=ZERO):
         if boxes<lot.boxes and (gross>=lot.gross or gross-tare>=lot.net):
             raise ValidationError('Qoladigan yashiklar uchun musbat mahsulot vazni qolishi kerak.')
     days=max(0,(day-lot.received_on).days+(1 if lot.bill_exit_day else 0))
-    if lot.service=='cooling':
+    if lot.service=='tiered':
+        if kind=='storage_bill':raise ValidationError('Bu partiya oylik saqlama xizmatida emas.')
+        days=tiered_days(lot.received_on,day)
+        charge=money((gross if lot.basis=='gross' else gross-tare)*tiered_rate(lot,days))
+        target=lot.storage_billed
+    elif lot.service=='cooling':
         if kind=='storage_bill':raise ValidationError('Bu partiya saqlama xizmatida emas.')
         charge=money((gross if lot.basis=='gross' else gross-tare)*lot.rate*days)
         target=lot.storage_billed
@@ -94,7 +117,7 @@ def receive(user,data):
     if cam.capacity_kg is not None:
         used=Lot.objects.filter(camera=cam,closed_on__isnull=True).aggregate(n=Sum('gross'))['n'] or ZERO
         if used+data['gross']>cam.capacity_kg:raise ValidationError('Kameraning brutto kg sig‘imi yetarli emas.')
-    lot=Lot.objects.create(create_key=data['request_key'],organization=cam.organization,camera=cam,customer=customer,product=data['product'],variety=data['variety'],box_type=data['box_type'],received_on=data['date'],last_stock_date=data['date'],initial_boxes=data['boxes'],initial_gross=data['gross'],initial_tare=data['tare'],boxes=data['boxes'],gross=data['gross'],tare=data['tare'],tariff_name=tariff.name,service=tariff.service,basis=tariff.basis,rate=tariff.rate,storage_mode=tariff.storage_mode,bill_exit_day=tariff.bill_exit_day,note=data['note'],created_by=user)
+    lot=Lot.objects.create(create_key=data['request_key'],organization=cam.organization,camera=cam,customer=customer,product=data['product'],variety=data['variety'],box_type=data['box_type'],received_on=data['date'],last_stock_date=data['date'],initial_boxes=data['boxes'],initial_gross=data['gross'],initial_tare=data['tare'],boxes=data['boxes'],gross=data['gross'],tare=data['tare'],tariff_name=tariff.name,service=tariff.service,basis=tariff.basis,rate=tariff.rate,storage_mode=tariff.storage_mode,bill_exit_day=tariff.bill_exit_day,**{f:getattr(tariff,f) for f in TIER_FIELDS},note=data['note'],created_by=user)
     Operation.objects.create(request_key=data['request_key'],lot=lot,camera=cam,kind='receive',date=data['date'],boxes=lot.boxes,gross=lot.gross,tare=lot.tare,boxes_after=lot.boxes,gross_after=lot.gross,tare_after=lot.tare,created_by=user)
     return lot
 

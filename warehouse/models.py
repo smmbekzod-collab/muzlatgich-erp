@@ -14,7 +14,13 @@ class Customer(models.Model):
 class Tariff(models.Model):
     organization=models.ForeignKey(Organization,on_delete=models.PROTECT)
     name=models.CharField(max_length=120)
-    service=models.CharField(max_length=10,choices=[('cooling','Sovutish'),('storage','Saqlama')])
+    service=models.CharField(max_length=10,choices=[('cooling','Sovutish (eski tarif)'),('storage','Saqlama (eski tarif)'),('tiered','Muddatga ko‘ra, so‘m/kg')])
+    tier_1_10=models.DecimalField('1–10 kun, so‘m/kg',max_digits=16,decimal_places=2,null=True,blank=True)
+    tier_11_15=models.DecimalField('11–15 kun, so‘m/kg',max_digits=16,decimal_places=2,null=True,blank=True)
+    tier_16_25=models.DecimalField('16–25 kun, so‘m/kg',max_digits=16,decimal_places=2,null=True,blank=True)
+    tier_26_30=models.DecimalField('26–30 kun, so‘m/kg',max_digits=16,decimal_places=2,null=True,blank=True)
+    tier_31_plus=models.DecimalField('31+ kun, so‘m/kg',max_digits=16,decimal_places=2,null=True,blank=True)
+
     basis=models.CharField(max_length=10,choices=[('net','Sof kg'),('gross','Brutto kg')],default='net')
     rate=models.DecimalField(max_digits=16,decimal_places=2)
     storage_mode=models.CharField(max_length=10,choices=[('prorata','Kuniga ulush'),('full','Boshlangan oy to‘liq')],default='prorata')
@@ -48,6 +54,12 @@ class Lot(models.Model):
     storage_mode=models.CharField(max_length=10)
     bill_exit_day=models.BooleanField(default=False)
     storage_billed=models.DecimalField(max_digits=16,decimal_places=2,default=0)
+    tier_1_10=models.DecimalField('1–10 kun, so‘m/kg',max_digits=16,decimal_places=2,null=True,blank=True)
+    tier_11_15=models.DecimalField('11–15 kun, so‘m/kg',max_digits=16,decimal_places=2,null=True,blank=True)
+    tier_16_25=models.DecimalField('16–25 kun, so‘m/kg',max_digits=16,decimal_places=2,null=True,blank=True)
+    tier_26_30=models.DecimalField('26–30 kun, so‘m/kg',max_digits=16,decimal_places=2,null=True,blank=True)
+    tier_31_plus=models.DecimalField('31+ kun, so‘m/kg',max_digits=16,decimal_places=2,null=True,blank=True)
+
     closed_on=models.DateField(null=True,blank=True)
     note=models.TextField(blank=True)
     created_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)

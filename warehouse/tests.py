@@ -221,6 +221,55 @@ class WorkflowTests(TestCase):
         self.assertContains(r,'data-fill-all')
         self.assertContains(r,'data-dispatch-form')
         self.assertContains(r,'Hisobni ko‘rish')
+
+    def test_tiered_tariff_boundaries_and_total_price(self):
+        self.tariff.service='tiered'
+        self.tariff.tier_1_10=D('250')
+        self.tariff.tier_11_15=D('300')
+        self.tariff.tier_16_25=D('400')
+        self.tariff.tier_26_30=D('450')
+        self.tariff.tier_31_plus=D('450')
+        self.tariff.save()
+        lot=receive(self.u,self.intake_data(tariff=self.tariff))
+        for age,rate in [(1,250),(10,250),(11,300),(15,300),(16,400),
+                         (25,400),(26,450),(30,450),(31,450),(50,450)]:
+            with self.subTest(days=age):
+                lot.received_on=date(2026,9,1)
+                lot.last_stock_date=date(2026,9,1)
+                calculated=quote(lot,'dispatch',date(2026,9,1)+timedelta(days=age-1),
+                                 100,D('1100'),D('100'))
+                self.assertEqual(calculated['charge'], D(1000)*D(rate))
+                self.assertEqual(calculated['days'],age)
+
+    def test_tiered_snapshot_survives_price_change_and_partial_exit(self):
+        self.tariff.service='tiered'
+        for key,value in [('tier_1_10',250),('tier_11_15',300),('tier_16_25',400),
+                          ('tier_26_30',450),('tier_31_plus',450)]:
+            setattr(self.tariff,key,D(value))
+        self.tariff.save()
+        lot=receive(self.u,self.intake_data(tariff=self.tariff))
+        self.tariff.tier_11_15=D('900')
+        self.tariff.save()
+        day=date(2026,10,7)
+        self.assertEqual(quote(lot,'dispatch',day,100,D('1100'),D('100'))['charge'],D('250000'))
+        lot.received_on=date(2026,9,26)
+        lot.last_stock_date=date(2026,9,26)
+        self.assertEqual(quote(lot,'dispatch',day,100,D('1100'),D('100'))['charge'],D('300000'))
+
+    def test_tiered_form_requires_all_prices_and_no_cross_org_tariff(self):
+        from .forms import TariffForm
+        d={'camera':self.c1.pk,'name':'Yangi', 'service':'tiered','basis':'net',
+           'tier_1_10':'250','tier_11_15':'300','tier_16_25':'400',
+           'tier_26_30':'450','tier_31_plus':'450','storage_mode':'prorata'}
+        form=TariffForm(self.u,data=d)
+        self.assertTrue(form.is_valid(),form.errors)
+        self.assertEqual(form.cleaned_data['rate'],D('250'))
+        del d['tier_31_plus']
+        form=TariffForm(self.u,data=d)
+        self.assertFalse(form.is_valid())
+        self.assertIn('tier_31_plus',form.errors)
+        d['camera']=self.cb.pk
+        self.assertFalse(TariffForm(self.u,data=d).is_valid())
     def test_login_throttle(self):
         self.client.logout()
         for i in range(5):self.assertEqual(self.client.post('/admin/login/',{'username':'keeper','password':'incorrect'}).status_code,200)

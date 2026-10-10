@@ -75,11 +75,29 @@ class TariffForm(forms.Form):
     name=forms.CharField(label='Tarif nomi',max_length=120)
     service=forms.ChoiceField(label='Xizmat',choices=Tariff._meta.get_field('service').choices)
     basis=forms.ChoiceField(label='Sovutish vazni',choices=Tariff._meta.get_field('basis').choices)
-    rate=forms.DecimalField(label='Sovutish: so‘m/kg/kun; saqlama: so‘m/oy',min_value=0,max_digits=16,decimal_places=2)
+    rate=forms.DecimalField(label='Eski tariflar uchun: so‘m/kg/kun yoki so‘m/oy',min_value=0,max_digits=16,decimal_places=2,required=False)
+    tier_1_10=forms.DecimalField(label='1–10 kun: so‘m/kg',min_value=0,max_digits=16,decimal_places=2,required=False,initial=250)
+    tier_11_15=forms.DecimalField(label='11–15 kun: so‘m/kg',min_value=0,max_digits=16,decimal_places=2,required=False,initial=300)
+    tier_16_25=forms.DecimalField(label='16–25 kun: so‘m/kg',min_value=0,max_digits=16,decimal_places=2,required=False,initial=400)
+    tier_26_30=forms.DecimalField(label='26–30 kun: so‘m/kg',min_value=0,max_digits=16,decimal_places=2,required=False,initial=450)
+    tier_31_plus=forms.DecimalField(label='31 kundan so‘ng: so‘m/kg',min_value=0,max_digits=16,decimal_places=2,required=False,initial=450)
     storage_mode=forms.ChoiceField(label='Saqlama usuli',choices=Tariff._meta.get_field('storage_mode').choices)
     bill_exit_day=forms.BooleanField(label='Chiqish kuniga ham haq olinadi',required=False)
     def __init__(self,user,*args,**kwargs):
         super().__init__(*args,**kwargs);self.fields['camera'].queryset=cameras(user).filter(is_active=True,organization__is_active=True)
+
+    def clean(self):
+        d=super().clean()
+        if d.get('service')=='tiered':
+            for key in ['tier_1_10','tier_11_15','tier_16_25','tier_26_30','tier_31_plus']:
+                if d.get(key) is None:
+                    self.add_error(key,'Bu bosqichning narxini kiriting.')
+            d['rate']=d.get('tier_1_10') or Decimal('0')
+        else:
+            if d.get('rate') is None:self.add_error('rate','Eski hisob usuli uchun narxni kiriting.')
+            for key in ['tier_1_10','tier_11_15','tier_16_25','tier_26_30','tier_31_plus']:
+                d[key]=None
+        return d
 
 class ExpenseForm(RequestForm):
     camera=forms.ModelChoiceField(label='Muzlatgich kamerasi',queryset=None)
