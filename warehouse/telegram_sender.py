@@ -56,6 +56,7 @@ def drain_alerts(limit=30,now=None):
     for _ in range(min(limit,100)):
         with transaction.atomic():
             chosen=(CameraEnvironmentAlert.objects.select_for_update(skip_locked=True)
+                .filter(resolved_at__isnull=True,camera__is_active=True,camera__organization__is_active=True)
                 .filter(Q(delivery_status__in=['pending','failed'])|
                         Q(delivery_status='sending',claimed_at__lte=now-timedelta(minutes=3)))
                 .filter(Q(next_attempt_at__lte=now)|Q(next_attempt_at__isnull=True))
@@ -72,6 +73,12 @@ def drain_alerts(limit=30,now=None):
         if not channel:
             CameraEnvironmentAlert.objects.filter(pk=pk,delivery_status='sending').update(
                 delivery_status='disabled',claimed_at=None,last_error='Chat o‘chirilgan')
+            continue
+        # Best-effort final freshness check: do not send a closed incident.
+        if not CameraEnvironmentAlert.objects.filter(pk=pk,resolved_at__isnull=True,
+                camera__is_active=True,camera__organization__is_active=True).exists():
+            CameraEnvironmentAlert.objects.filter(pk=pk,delivery_status='sending').update(
+                delivery_status='disabled',claimed_at=None,last_error='Hodisa yakunlangan')
             continue
         try:
             send_message(token,channel.chat_id,make_message(chosen))

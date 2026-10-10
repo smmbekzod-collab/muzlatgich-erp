@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import redirect,render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -42,7 +43,16 @@ def telegram_destinations(request):
                 organization=data['organization'],
                 defaults={'chat_id':data['chat_id'],'enabled':data['enabled'],'updated_by':request.user})
             destination.full_clean()
-        messages.success(request,'Telegram manzili saqlandi. Bot tokeni va davriy ishga tushirish alohida sozlanadi.')
+            # Re-enable only ACTIVE incidents. Closed incidents must never be sent later.
+            active=CameraEnvironmentAlert.objects.filter(
+                camera__organization=data['organization'],resolved_at__isnull=True)
+            if data['enabled']:
+                active.filter(delivery_status='disabled',sent_at__isnull=True).update(
+                    delivery_status='pending',next_attempt_at=None,last_error='')
+            else:
+                active.filter(delivery_status__in=['pending','failed']).update(
+                    delivery_status='disabled',next_attempt_at=None,last_error='Chat o‘chirilgan')
+        messages.success(request,'Telegram manzili saqlandi. Faol hodisalar holati ham moslashtirildi.')
         return redirect('telegram_destinations')
     destinations=list(TelegramAlertDestination.objects.select_related(
         'organization','updated_by').order_by('organization__name')[:150])

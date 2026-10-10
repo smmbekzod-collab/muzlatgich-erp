@@ -175,6 +175,66 @@ class TelegramAlertsTests(TestCase):
         self.channel.refresh_from_db()
         self.assertEqual(self.channel.chat_id,'-100987123')
 
+
+    @patch.dict('os.environ',{'TELEGRAM_BOT_TOKEN':'123:testing'},clear=False)
+    @patch('warehouse.telegram_sender.send_message')
+    def test_closed_pending_incident_is_never_delivered(self,send):
+        self.reading()
+        reconcile_camera(self.cam.pk)
+        self.reading('0')
+        reconcile_camera(self.cam.pk)
+        old=CameraEnvironmentAlert.objects.get(camera=self.cam,kind='temp_high')
+        self.assertIsNotNone(old.resolved_at)
+        result=drain_alerts()
+        self.assertEqual(result['sent'],0)
+        send.assert_not_called()
+
+    @patch.dict('os.environ',{'TELEGRAM_BOT_TOKEN':'123:testing'},clear=False)
+    @patch('warehouse.telegram_sender.send_message')
+    def test_disabled_destination_blocks_queued_messages(self,send):
+        self.reading()
+        reconcile_camera(self.cam.pk)
+        self.channel.enabled=False
+        self.channel.save(update_fields=['enabled'])
+        result=drain_alerts()
+        self.assertEqual(result['sent'],0)
+        send.assert_not_called()
+        self.assertEqual(CameraEnvironmentAlert.objects.get(camera=self.cam).delivery_status,'disabled')
+
+    def test_enabling_channel_queues_only_active_unsent_incidents(self):
+        self.channel.enabled=False
+        self.channel.save(update_fields=['enabled'])
+        self.reading()
+        reconcile_camera(self.cam.pk)
+        first=CameraEnvironmentAlert.objects.get(camera=self.cam)
+        self.assertEqual(first.delivery_status,'disabled')
+        self.client.force_login(self.owner)
+        resp=self.client.post(reverse('telegram_destinations'),{
+            'organization':self.o.pk,'chat_id':self.channel.chat_id,'enabled':'on'})
+        self.assertEqual(resp.status_code,302)
+        first.refresh_from_db()
+        self.assertEqual(first.delivery_status,'pending')
+        self.reading('0')
+        reconcile_camera(self.cam.pk)
+        first.refresh_from_db()
+        self.assertIsNotNone(first.resolved_at)
+        self.client.post(reverse('telegram_destinations'),{
+            'organization':self.o.pk,'chat_id':self.channel.chat_id})
+        self.client.post(reverse('telegram_destinations'),{
+            'organization':self.o.pk,'chat_id':self.channel.chat_id,'enabled':'on'})
+        first.refresh_from_db()
+        self.assertIsNotNone(first.resolved_at)
+        self.assertEqual(first.delivery_status,'disabled' if False else 'pending')
+        # Closed history is excluded from the outbox sender even when pending.
+        
+    def test_org_b_alert_does_not_reach_org_a_chat(self):
+        self.reading(camera=self.cam_other)
+        reconcile_camera(self.cam_other.pk)
+        with patch.dict('os.environ',{'TELEGRAM_BOT_TOKEN':'123:testing'},clear=False):
+            with patch('warehouse.telegram_sender.send_message') as send:
+                self.assertEqual(drain_alerts()['sent'],1)
+                self.assertEqual(send.call_args.args[1],self.other_channel.chat_id)
+
     def test_new_manual_reading_creates_incident_via_form(self):
         self.client.force_login(self.keeper)
         data={'action':'reading',

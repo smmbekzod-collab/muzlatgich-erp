@@ -55,7 +55,15 @@ def reconcile_camera(camera_id,now=None):
     channel=TelegramAlertDestination.objects.filter(organization_id=camera.organization_id,enabled=True).first()
     opened=[]
     for kind,reason in conditions.items():
-        if kind in current:continue
+        if kind in current:
+            existing=current[kind]
+            # Alert was created while Telegram was disabled, then route enabled.
+            if channel and existing.delivery_status=='disabled' and existing.sent_at is None:
+                existing.delivery_status='pending'
+                existing.next_attempt_at=None
+                existing.last_error=''
+                existing.save(update_fields=['delivery_status','next_attempt_at','last_error'])
+            continue
         alert=CameraEnvironmentAlert.objects.create(camera=camera,kind=kind,description=reason,
             opened_at=now,delivery_status='pending' if channel else 'disabled')
         opened.append(alert)
