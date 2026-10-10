@@ -19,6 +19,11 @@ class OrganizationSetupForm(forms.ModelForm):
             'camera_limit': 'Tashkilotdagi jami kameralar limiti. Barcha filiallar hisoblanadi.',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['camera_limit'].min_value = 1
+        self.fields['camera_limit'].widget.attrs['min'] = '1'
+
     def clean_name(self):
         value = self.cleaned_data['name'].strip()
         if not value:
