@@ -162,7 +162,7 @@ class PlatformOnboardingTests(TestCase):
         self.organization(name='Toshkent Fruit',code='fruit')
         r=self.client.get(self.url,{'q':'Fruit'})
         self.assertContains(r,'Toshkent Fruit')
-        self.assertNotContains(r,'Farg‘ona Meva')
+        self.assertEqual([item.code for item in r.context['organizations']], ['fruit'])
         self.client.force_login(self.staff)
         self.assertEqual(self.client.get(self.url,{'q':'Fruit'}).status_code,403)
 
