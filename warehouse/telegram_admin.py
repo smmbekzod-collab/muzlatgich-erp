@@ -7,7 +7,7 @@ from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db import transaction
+from django.db import transaction,IntegrityError
 from django.db.models import Q
 from django.shortcuts import redirect,render
 from django.utils import timezone
@@ -29,6 +29,16 @@ class TelegramDestinationForm(forms.Form):
         super().__init__(*args,**kwargs)
         self.fields['organization'].queryset=Organization.objects.filter(is_active=True).order_by('name')
 
+    def clean(self):
+        values=super().clean()
+        org=values.get('organization')
+        chat=values.get('chat_id')
+        if values.get('enabled') and org and chat and TelegramAlertDestination.objects.filter(
+            chat_id=chat,enabled=True).exclude(organization=org).exists():
+            self.add_error('chat_id','Bu Telegram guruhi boshqa faol tashkilotga tegishli.')
+        return values
+
+
 
 @login_required
 @require_http_methods(['GET','POST'])
@@ -38,27 +48,33 @@ def telegram_destinations(request):
     form=TelegramDestinationForm(request.POST if request.method=='POST' else None)
     if request.method=='POST' and form.is_valid():
         data=form.cleaned_data
-        with transaction.atomic():
-            Organization.objects.select_for_update().get(pk=data['organization'].pk)
-            destination,created=TelegramAlertDestination.objects.update_or_create(
-                organization=data['organization'],
-                defaults={'chat_id':data['chat_id'],'enabled':data['enabled'],'daily_digest_enabled':data['daily_digest_enabled'],'updated_by':request.user})
-            destination.full_clean()
-            # Re-enable only ACTIVE incidents. Closed incidents must never be sent later.
-            active=CameraEnvironmentAlert.objects.filter(
-                camera__organization=data['organization'],resolved_at__isnull=True)
-            if data['enabled']:
-                active.filter(delivery_status='disabled',sent_at__isnull=True).update(
-                    delivery_status='pending',next_attempt_at=None,last_error='')
-            else:
-                active.filter(delivery_status__in=['pending','failed']).update(
-                    delivery_status='disabled',next_attempt_at=None,last_error='Chat o‘chirilgan')
-        # Stop unsent digests if the summary or chat is disabled/repointed.
-        if not data['enabled'] or not data['daily_digest_enabled']:
-            DailyTelegramDigest.objects.filter(organization=data['organization'],delivery_status__in=['pending','failed']).update(
-                delivery_status='disabled',next_attempt_at=None,last_error='Hisobotlar o‘chirilgan')
-        messages.success(request,'Telegram manzili va kunlik hisobot jadvali saqlandi.')
-        return redirect('telegram_destinations')
+        try:
+            with transaction.atomic():
+                Organization.objects.select_for_update().get(pk=data['organization'].pk)
+                destination,created=TelegramAlertDestination.objects.update_or_create(
+                    organization=data['organization'],
+                    defaults={
+                        'chat_id':data['chat_id'],'enabled':data['enabled'],
+                        'daily_digest_enabled':data['daily_digest_enabled'],'updated_by':request.user})
+                destination.full_clean()
+                active=CameraEnvironmentAlert.objects.filter(
+                    camera__organization=data['organization'],resolved_at__isnull=True)
+                if data['enabled']:
+                    active.filter(delivery_status='disabled',sent_at__isnull=True).update(
+                        delivery_status='pending',next_attempt_at=None,last_error='')
+                else:
+                    active.filter(delivery_status__in=['pending','failed']).update(
+                        delivery_status='disabled',next_attempt_at=None,last_error='Chat o‘chirilgan')
+                if not data['enabled'] or not data['daily_digest_enabled']:
+                    DailyTelegramDigest.objects.filter(
+                        organization=data['organization'],delivery_status__in=['pending','failed']
+                    ).update(delivery_status='disabled',next_attempt_at=None,
+                             last_error='Hisobotlar o‘chirilgan')
+        except IntegrityError:
+            form.add_error('chat_id','Bu Telegram guruhidan boshqa faol tashkilot foydalanmoqda.')
+        else:
+            messages.success(request,'Telegram manzili va uch mahal hisobot jadvali saqlandi.')
+            return redirect('telegram_destinations')
     destinations=list(TelegramAlertDestination.objects.select_related(
         'organization','updated_by').order_by('organization__name')[:150])
     return render(request,'warehouse/telegram_admin.html',{
