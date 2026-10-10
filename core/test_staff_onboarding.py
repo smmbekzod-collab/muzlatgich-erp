@@ -159,6 +159,7 @@ class StaffOnboardingTests(TestCase):
         browser=Client(enforce_csrf_checks=True)
         browser.force_login(self.owner)
         self.assertEqual(browser.post(self.url,self.payload()).status_code,403)
+        self.client.force_login(self.owner)
         self.assertEqual(self.client.put(self.url).status_code,405)
         self.assertFalse(self.User.objects.filter(username='newstaff').exists())
 
