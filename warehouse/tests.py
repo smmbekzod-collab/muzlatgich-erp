@@ -256,6 +256,20 @@ class WorkflowTests(TestCase):
         lot.last_stock_date=date(2026,9,26)
         self.assertEqual(quote(lot,'dispatch',day,100,D('1100'),D('100'))['charge'],D('300000'))
 
+    def test_tiered_receipt_shows_age_and_actual_rate(self):
+        self.tariff.service='tiered'
+        for field,value in [('tier_1_10',250),('tier_11_15',300),('tier_16_25',400),
+                            ('tier_26_30',450),('tier_31_plus',450)]:
+            setattr(self.tariff,field,D(value))
+        self.tariff.save()
+        lot=receive(self.u,self.intake_data(tariff=self.tariff,date=date(2026,9,26)))
+        operation=act(self.u,lot.pk,'dispatch',self.out(date=date(2026,10,7),payment=D('300000')))
+        self.assertEqual(operation.days,12)
+        self.assertEqual(operation.charge,D('300000'))
+        resp=self.client.get('/app/receipt/'+str(operation.pk)+'/')
+        self.assertContains(resp,'12 kun')
+        self.assertContains(resp,'300 so‘m/kg')
+
     def test_tiered_form_requires_all_prices_and_no_cross_org_tariff(self):
         from .forms import TariffForm
         d={'camera':self.c1.pk,'name':'Yangi', 'service':'tiered','basis':'net',

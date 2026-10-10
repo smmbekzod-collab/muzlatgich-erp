@@ -109,6 +109,14 @@ class Operation(models.Model):
     def net(self):return self.gross-self.tare
     @property
     def short_id(self):return str(self.id)[:8].upper()
+    @property
+    def effective_rate(self):
+        if self.lot.service=='tiered':
+            age=max(1,self.days)
+            field=('tier_1_10' if age<=10 else 'tier_11_15' if age<=15 else
+                   'tier_16_25' if age<=25 else 'tier_26_30' if age<=30 else 'tier_31_plus')
+            return getattr(self.lot,field)
+        return self.lot.rate
     class Meta:ordering=['-created_at']
 
 class Expense(models.Model):
