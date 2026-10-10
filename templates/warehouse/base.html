@@ -12,6 +12,7 @@
   <a href="{% url 'report' %}" {% if request.resolver_match.url_name == 'report' %}class="nav-current" aria-current="page"{% endif %}>▥ &nbsp; Hisob va qarzlar</a>
   <a href="{% url 'expenses' %}" {% if request.resolver_match.url_name == 'expenses' %}class="nav-current" aria-current="page"{% endif %}>◈ &nbsp; Xarajatlar</a>
   <div class="nav-group-label">SOZLAMALAR</div>
+  {% if request.user.is_superuser %}<a href="{% url 'platform_dashboard' %}" {% if request.resolver_match.url_name == 'platform_dashboard' %}class="nav-current" aria-current="page"{% endif %}>▤ &nbsp; Tashkilot va kameralar</a>{% endif %}
   <a href="{% url 'admin:index' %}">{% if request.user.is_superuser %}⚙ &nbsp; Super Admin{% else %}⚙ &nbsp; Mening huquqlarim{% endif %}</a>
 </nav>
 <main>{% for message in messages %}<div role="status" class="notice">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}</main></div><footer>MUZLATGICH ERP · {{ today|date:'d.m.Y' }} · Hisoblar so‘mda</footer><script src="{% static 'warehouse/app.js' %}" defer></script>{% block scripts %}{% endblock %}</body></html>

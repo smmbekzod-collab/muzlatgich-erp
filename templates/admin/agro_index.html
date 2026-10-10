@@ -1,7 +1,7 @@
 {% extends "admin/index.html" %}
 {% block content %}
 <h1>{% if is_platform_admin %}Super admin{% else %}Tashkilot paneli{% endif %}</h1>
-<div class="agro-actions"><a href="{% url 'dashboard' %}">Ombor ish oynasi</a><a href="{% url 'scanner' %}">QR skaner</a></div>
+<div class="agro-actions">{% if is_platform_admin %}<a href="{% url 'platform_dashboard' %}">Tashkilot → filial → kamera</a>{% endif %}<a href="{% url 'dashboard' %}">Ombor ish oynasi</a><a href="{% url 'scanner' %}">QR skaner</a></div>
 <p class="agro-label">{{ organization_count }} ta tashkilot · {{ camera_count }} ta ruxsat doirasidagi kamera</p>
 {% if is_platform_admin %}<div class="agro-actions"><a href="{% url 'admin:core_organization_add' %}">+ Tashkilot</a><a href="{% url 'admin:core_camera_add' %}">+ Kamera</a><a href="{% url 'admin:auth_user_add' %}">+ Foydalanuvchi</a><a href="{% url 'admin:core_membership_add' %}">Huquq berish</a></div>{% endif %}
 <div class="agro-cards">{% for card in cards %}<section class="agro-card"><h2>{{ card.organization.name }}</h2><strong>{{ card.count }}</strong> kamera{% if is_platform_admin %} / limit {{ card.organization.camera_limit }}{% endif %}<p>{% if card.organization.is_active %}Faol{% else %}To‘xtatilgan{% endif %}</p><a href="{% url 'admin:core_camera_changelist' %}?organization__id__exact={{ card.organization.pk }}">Kameralarni ochish</a></section>{% empty %}<p>Hozircha tashkilot yo‘q.</p>{% endfor %}</div>

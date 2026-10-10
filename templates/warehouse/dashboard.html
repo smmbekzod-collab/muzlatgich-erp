@@ -7,10 +7,17 @@
     <p class="muted">Filial, kamera va partiyalar bo‘yicha tezkor nazorat.</p>
   </div>
   <div class="overview-actions">
+    {% if request.user.is_superuser %}<a class="button secondary" href="{% url 'platform_dashboard' %}">⚙ Tashkilotlar</a>{% endif %}
     <a class="button secondary" href="{% url 'scanner' %}">▦ &nbsp; QR skaner</a>
     <a class="button" href="{% url 'intake' %}">+ &nbsp; Yuk qabul qilish</a>
   </div>
 </section>
+{% if request.user.is_superuser and not camera_count %}
+<section class="notice" aria-label="Ishni boshlash">
+  <strong>Kameralar hali kiritilmagan.</strong> Avval tashkilot, filial va kameralarni yarating.
+  <a href="{% url 'platform_dashboard' %}">Platformani sozlash →</a>
+</section>
+{% endif %}
 <section class="kpi-grid" aria-label="Ombor ko‘rsatkichlari">
   <div class="kpi-card"><div class="kpi-label">Faol kameralar ko‘rinishi</div><div class="kpi-value">{{ camera_count }}</div><div class="kpi-foot">Sizga ruxsat berilgan kameralar</div></div>
   <div class="kpi-card"><div class="kpi-label">Joriy partiyalar</div><div class="kpi-value">{{ active_lot_count }}</div><div class="kpi-foot">Ombordagi ochiq yuklar</div></div>
