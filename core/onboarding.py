@@ -9,6 +9,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
@@ -88,6 +89,7 @@ def platform_dashboard(request):
     )
 
     return render(request, 'warehouse/platform_dashboard.html', {
+        'today': timezone.localdate(),
         'organization_form': org_form,
         'facility_form': branch_form,
         'camera_form': camera_form,
