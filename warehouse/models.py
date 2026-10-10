@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import models,transaction
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from django.utils import timezone
 from core.models import Organization,Camera
 
 class Customer(models.Model):
@@ -291,3 +292,44 @@ class CameraEnvironmentReading(models.Model):
 
     def __str__(self):
         return f'{self.camera} / {self.measured_at:%Y-%m-%d %H:%M}'
+
+
+class TelegramAlertDestination(models.Model):
+    """A chat destination is owned by one organization and managed only by Super Admin."""
+    organization=models.OneToOneField(Organization,on_delete=models.PROTECT,related_name='telegram_alerts')
+    chat_id=models.CharField('Telegram chat ID',max_length=32)
+    enabled=models.BooleanField('Ogohlantirishlarga ruxsat',default=False)
+    updated_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    updated_at=models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        if self.chat_id and (not self.chat_id.lstrip('-').isdigit() or self.chat_id in ('0','-0')):
+            raise ValidationError({'chat_id':'Telegram chat ID raqamlardan iborat bo‘lishi kerak.'})
+    def __str__(self):return f'{self.organization} / {self.chat_id}'
+
+
+class CameraEnvironmentAlert(models.Model):
+    """One open incident for each camera/issue; durable Telegram delivery outbox."""
+    KINDS=[
+        ('temp_low','Past harorat'),('temp_high','Yuqori harorat'),
+        ('humidity_low','Past namlik'),('humidity_high','Yuqori namlik'),
+        ('stale','O‘lchov eskirgan'),('age','Saqlash nazorat kunidan oshgan'),
+    ]
+    camera=models.ForeignKey(Camera,on_delete=models.PROTECT,related_name='environment_alerts')
+    kind=models.CharField('Hodisa',choices=KINDS,max_length=20)
+    description=models.CharField('Sabab',max_length=300)
+    opened_at=models.DateTimeField('Boshlandi',default=timezone.now)
+    resolved_at=models.DateTimeField('Bartaraf etildi',null=True,blank=True)
+    delivery_status=models.CharField('Telegram holati',max_length=15,default='disabled',
+        choices=[('disabled','Ulanmagan'),('pending','Navbatda'),('sending','Yuborilmoqda'),('sent','Yuborilgan'),('failed','Xatolik')])
+    attempts=models.PositiveSmallIntegerField(default=0)
+    next_attempt_at=models.DateTimeField(null=True,blank=True)
+    claimed_at=models.DateTimeField(null=True,blank=True)
+    sent_at=models.DateTimeField(null=True,blank=True)
+    last_error=models.CharField(max_length=120,blank=True)
+    class Meta:
+        ordering=['-opened_at','-pk']
+        constraints=[models.UniqueConstraint(fields=['camera','kind'],condition=Q(resolved_at__isnull=True),
+                    name='unique_open_environment_alert')]
+        indexes=[models.Index(fields=['delivery_status','next_attempt_at'],name='env_alert_delivery_idx')]
+    def __str__(self):return f'{self.camera} · {self.get_kind_display()}'
