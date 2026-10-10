@@ -1,10 +1,11 @@
 """Multi-branch regression tests; run with Django's test runner in a test database."""
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError, PermissionDenied
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from core.models import Organization, Facility, Camera, Membership
 from core import access
 
+@override_settings(STORAGES={'default':{'BACKEND':'django.core.files.storage.FileSystemStorage'},'staticfiles':{'BACKEND':'django.contrib.staticfiles.storage.StaticFilesStorage'}})
 class FacilityTests(TestCase):
     def setUp(self):
         self.admin = get_user_model().objects.create_superuser('root-f', password='Long-Root-Password-123!')
