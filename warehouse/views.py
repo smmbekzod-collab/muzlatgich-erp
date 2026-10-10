@@ -225,29 +225,47 @@ def report(request):
         try:access.authorize(request.user,cam.organization_id,cam.pk,'finance');visible.append(cam)
         except PermissionDenied:pass
     if not visible:raise PermissionDenied('Moliyaviy hisobot huquqi kerak.')
+    from .models import CameraRentalInvoice,CameraRentalPayment
     rows=[]
     for cam in visible:
-        ledger=Operation.objects.filter(camera=cam,date__range=[start,end]);spend=Expense.objects.filter(camera=cam,date__range=[start,end]).aggregate(s=Sum('amount'))['s'] or ZERO
-        cooling=ledger.filter(lot__service='cooling').aggregate(s=Sum('charge'))['s'] or ZERO
+        ledger=Operation.objects.filter(camera=cam,date__range=[start,end])
+        spend=Expense.objects.filter(camera=cam,date__range=[start,end]).aggregate(s=Sum('amount'))['s'] or ZERO
+        cooling=ledger.filter(lot__service__in=['cooling','tiered']).aggregate(s=Sum('charge'))['s'] or ZERO
         storage=ledger.filter(lot__service='storage').aggregate(s=Sum('charge'))['s'] or ZERO
-        paid=ledger.aggregate(s=Sum('payment'))['s'] or ZERO
-        rows.append({'camera':cam,'cooling':cooling,'storage':storage,'paid':paid,'expenses':spend,'cash_net':paid-spend})
+        lot_paid=ledger.aggregate(s=Sum('payment'))['s'] or ZERO
+        rental_charges=CameraRentalInvoice.objects.filter(agreement__camera=cam,period_start__range=[start,end]).aggregate(s=Sum('amount'))['s'] or ZERO
+        rental_paid=CameraRentalPayment.objects.filter(invoice__agreement__camera=cam,date__range=[start,end]).aggregate(s=Sum('amount'))['s'] or ZERO
+        paid=lot_paid+rental_paid
+        rows.append({'camera':cam,'cooling':cooling,'storage':storage,'rental_charges':rental_charges,
+                     'lot_paid':lot_paid,'rental_paid':rental_paid,
+                     'paid':paid,'expenses':spend,'cash_net':paid-spend})
     debts=[]
     for lot in visible_lots(request.user).filter(camera__in=visible).order_by('customer__name'):
         t=totals(lot);p=pending(lot)
         debts.append({'lot':lot,**t,'pending':p,'estimated_debt':max(ZERO,t['charged']+p-t['paid'])})
+    rent_invoices=list(CameraRentalInvoice.objects.filter(agreement__camera__in=visible).select_related('agreement__customer','agreement__camera','agreement__camera__organization').order_by('-period_start'))
+    rent_payments=list(CameraRentalPayment.objects.filter(invoice__agreement__camera__in=visible,date__range=[start,end]).select_related('invoice__agreement__customer','invoice__agreement__camera').order_by('-date','-pk'))
     if request.GET.get('export')=='xlsx':
-        return general_excel(rows, debts, start, end)
+        return general_excel(rows, debts, start, end, rent_invoices, rent_payments)
     if request.GET.get('export')=='csv':
         response=HttpResponse(content_type='text/csv; charset=utf-8-sig');response['Content-Disposition']='attachment; filename="muzlatgich-erp-hisobot.csv"';response.write('\ufeff')
-        writer=csv.writer(response);writer.writerow(['Tashkilot','Kamera','Sovutish hisob','Saqlama hisob','Tushum','Xarajat','Pul oqimi','Davr boshi','Davr oxiri'])
+        writer=csv.writer(response);writer.writerow(['Tashkilot','Kamera','Sovutish/tier hisob','Partiya saqlamasi','Kamera ijara hisobi','Yuk to‘lovlari','Kamera ijara to‘lovlari','Jami tushum','Xarajat','Pul oqimi','Davr boshi','Davr oxiri'])
         def safe(x):
             text=str(x);return "'"+text if text.startswith(('=','+','-','@','\t','\r')) else text
-        for row in rows:writer.writerow([safe(row['camera'].organization.name),row['camera'].number,row['cooling'],row['storage'],row['paid'],row['expenses'],row['cash_net'],start,end])
+        for row in rows:writer.writerow([safe(row['camera'].organization.name),row['camera'].number,row['cooling'],row['storage'],row['rental_charges'],row['lot_paid'],row['rental_paid'],row['paid'],row['expenses'],row['cash_net'],start,end])
         writer.writerow([]);writer.writerow(['Partiya','Mijoz','Tasdiqlangan hisob','To‘lov','Qarz','Avans','Hali yozilmagan xizmat','Joriy taxminiy qarz'])
         for row in debts:writer.writerow([row['lot'].short_id,safe(row['lot'].customer.name),row['charged'],row['paid'],row['debt'],row['advance'],row['pending'],row['estimated_debt']])
+        writer.writerow([])
+        writer.writerow(['KAMERA IJARASI HISOBLARI'])
+        writer.writerow(['Tashkilot','Kamera','Mijoz','Davr boshi','Davr oxiri','Hisob','To‘lov','Qarz'])
+        for inv in rent_invoices:
+            writer.writerow([safe(inv.agreement.camera.organization.name),inv.agreement.camera.number,
+                             safe(inv.agreement.customer.name),inv.period_start,inv.period_end,
+                             inv.amount,inv.paid,inv.debt])
         return response
-    return render(request,'warehouse/report.html',context(request,rows=rows,debts=debts,start=start,end=end,report_customers=allowed_customers(request.user)))
+    return render(request,'warehouse/report.html',context(request,rows=rows,debts=debts,
+        rent_invoices=rent_invoices[:300],start=start,end=end,
+        report_customers=allowed_customers(request.user)))
 
 def manifest(request):return JsonResponse({'name':'Muzlatgich ERP','short_name':'Muzlatgich ERP','start_url':'/app/','display':'standalone','background_color':'#f4f7fa','theme_color':'#113d36','icons':[{'src':'/static/warehouse/icon-192.png','sizes':'192x192','type':'image/png'},{'src':'/static/warehouse/icon-512.png','sizes':'512x512','type':'image/png'}]})
 def service_worker(request):

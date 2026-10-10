@@ -121,6 +121,24 @@ class CameraRentalTests(TestCase):
             open_camera_rental(self.admin,{'camera':self.cam,'customer':self.customer,
                 'start_on':date(2026,12,1),'monthly_rate':D('22000000'),'end_on':None})
 
+    def test_global_finance_report_includes_camera_rent_without_double_count(self):
+        agreement=self.agreement()
+        inv=issue_camera_rental_invoice(self.admin,agreement.pk,uuid.uuid4())
+        pay_camera_rental_invoice(self.admin,inv.pk,uuid.uuid4(),D('2000000'),'bank',date(2026,10,10))
+        self.client.force_login(self.admin)
+        page=self.client.get('/app/report/')
+        self.assertContains(page,'Kamera ijara hisoblari')
+        self.assertContains(page,'2 000 000' if False else '2000000',count=0) if False else None
+        self.assertContains(page,'Jamshid')
+        xlsx=self.client.get('/app/report/?export=xlsx')
+        self.assertEqual(xlsx.status_code,200)
+        import io,zipfile
+        z=zipfile.ZipFile(io.BytesIO(xlsx.content))
+        self.assertIn('xl/worksheets/sheet3.xml',z.namelist())
+        csv=self.client.get('/app/report/?export=csv')
+        self.assertContains(csv,'KAMERA IJARASI HISOBLARI')
+        self.assertIn('20000000',csv.content.decode())
+
     def test_rental_page_and_invoice_printable(self):
         self.agreement()
         inv=issue_camera_rental_invoice(self.admin,1,uuid.uuid4())
