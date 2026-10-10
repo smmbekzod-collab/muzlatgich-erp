@@ -300,7 +300,7 @@ class TelegramAlertDestination(models.Model):
     organization=models.OneToOneField(Organization,on_delete=models.PROTECT,related_name='telegram_alerts')
     chat_id=models.CharField('Telegram chat ID',max_length=32)
     enabled=models.BooleanField('Ogohlantirishlarga ruxsat',default=False)
-    daily_digest_enabled=models.BooleanField('Ertalabgi kunlik hisobot',default=True)
+    daily_digest_enabled=models.BooleanField('Hisobotlar 08:00, 14:00, 20:00',default=True)
     updated_by=models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
     updated_at=models.DateTimeField(auto_now=True)
 
@@ -350,6 +350,7 @@ class DailyTelegramDigest(models.Model):
     """One morning digest per organization and local date; retryable delivery audit."""
     organization=models.ForeignKey(Organization,on_delete=models.PROTECT,related_name='daily_telegram_digests')
     report_date=models.DateField('Hisobot sanasi')
+    slot_hour=models.PositiveSmallIntegerField('Hisobot soati',choices=[(8,'08:00'),(14,'14:00'),(20,'20:00')])
     message=models.TextField('Tashkilotning kunlik hisoboti')
     delivery_status=models.CharField(max_length=12,default='pending',choices=[
         ('pending','Navbatda'),('sending','Yuborilmoqda'),
@@ -364,8 +365,8 @@ class DailyTelegramDigest(models.Model):
 
     class Meta:
         ordering=['-report_date','-pk']
-        constraints=[models.UniqueConstraint(fields=['organization','report_date'],name='unique_daily_digest_per_org')]
+        constraints=[models.UniqueConstraint(fields=['organization','report_date','slot_hour'],name='unique_daily_digest_per_org')]
         indexes=[models.Index(fields=['delivery_status','next_attempt_at'],name='daily_digest_queue_idx')]
 
     def __str__(self):
-        return f'{self.organization} · {self.report_date}'
+        return f'{self.organization} · {self.report_date} / {self.slot_hour:02d}:00'

@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='telegramalertdestination',
             name='daily_digest_enabled',
-            field=models.BooleanField(default=True,verbose_name='Ertalabgi kunlik hisobot')),
+            field=models.BooleanField(default=True,verbose_name='Hisobotlar 08:00, 14:00, 20:00')),
         migrations.AddConstraint(
             model_name='telegramalertdestination',
             constraint=models.UniqueConstraint(fields=['chat_id'],
@@ -18,6 +18,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(name='DailyTelegramDigest',fields=[
             ('id',models.BigAutoField(auto_created=True,primary_key=True,serialize=False,verbose_name='ID')),
             ('report_date',models.DateField(verbose_name='Hisobot sanasi')),
+            ('slot_hour',models.PositiveSmallIntegerField(choices=[(8,'08:00'),(14,'14:00'),(20,'20:00')],verbose_name='Hisobot soati')),
             ('message',models.TextField(verbose_name='Tashkilotning kunlik hisoboti')),
             ('delivery_status',models.CharField(max_length=12,default='pending',choices=[
                 ('pending','Navbatda'),('sending','Yuborilmoqda'),
@@ -33,7 +34,7 @@ class Migration(migrations.Migration):
                 related_name='daily_telegram_digests',to='core.organization')),
         ],options={'ordering':['-report_date','-pk']}),
         migrations.AddConstraint(model_name='dailytelegramdigest',
-            constraint=models.UniqueConstraint(fields=['organization','report_date'],
+            constraint=models.UniqueConstraint(fields=['organization','report_date','slot_hour'],
                 name='unique_daily_digest_per_org')),
         migrations.AddIndex(model_name='dailytelegramdigest',
             index=models.Index(fields=['delivery_status','next_attempt_at'],name='daily_digest_queue_idx')),

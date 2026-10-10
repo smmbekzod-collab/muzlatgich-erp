@@ -13,7 +13,7 @@ from django.shortcuts import redirect,render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from core.models import Organization
-from .models import TelegramAlertDestination,CameraEnvironmentAlert
+from .models import TelegramAlertDestination,CameraEnvironmentAlert,DailyTelegramDigest
 
 
 class TelegramDestinationForm(forms.Form):
@@ -23,6 +23,7 @@ class TelegramDestinationForm(forms.Form):
         widget=forms.TextInput(attrs={'inputmode':'text','placeholder':'-1001234567890'}),
         help_text='Bot qo‘shilgan shaxsiy chat yoki guruhning haqiqiy raqamli chat ID qiymati.')
     enabled=forms.BooleanField(label='Ogohlantirishlarni yoqish',required=False)
+    daily_digest_enabled=forms.BooleanField(label='08:00, 14:00, 20:00 — umumiy hisobotlar',required=False,initial=True)
 
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
@@ -41,7 +42,7 @@ def telegram_destinations(request):
             Organization.objects.select_for_update().get(pk=data['organization'].pk)
             destination,created=TelegramAlertDestination.objects.update_or_create(
                 organization=data['organization'],
-                defaults={'chat_id':data['chat_id'],'enabled':data['enabled'],'updated_by':request.user})
+                defaults={'chat_id':data['chat_id'],'enabled':data['enabled'],'daily_digest_enabled':data['daily_digest_enabled'],'updated_by':request.user})
             destination.full_clean()
             # Re-enable only ACTIVE incidents. Closed incidents must never be sent later.
             active=CameraEnvironmentAlert.objects.filter(
@@ -52,7 +53,11 @@ def telegram_destinations(request):
             else:
                 active.filter(delivery_status__in=['pending','failed']).update(
                     delivery_status='disabled',next_attempt_at=None,last_error='Chat o‘chirilgan')
-        messages.success(request,'Telegram manzili saqlandi. Faol hodisalar holati ham moslashtirildi.')
+        # Stop unsent digests if the summary or chat is disabled/repointed.
+        if not data['enabled'] or not data['daily_digest_enabled']:
+            DailyTelegramDigest.objects.filter(organization=data['organization'],delivery_status__in=['pending','failed']).update(
+                delivery_status='disabled',next_attempt_at=None,last_error='Hisobotlar o‘chirilgan')
+        messages.success(request,'Telegram manzili va kunlik hisobot jadvali saqlandi.')
         return redirect('telegram_destinations')
     destinations=list(TelegramAlertDestination.objects.select_related(
         'organization','updated_by').order_by('organization__name')[:150])
@@ -62,4 +67,5 @@ def telegram_destinations(request):
                          os.environ.get('TELEGRAM_BOT_CONFIGURED','') == '1'),
         'configured_count':TelegramAlertDestination.objects.filter(enabled=True).count(),
         'pending_count':CameraEnvironmentAlert.objects.filter(delivery_status__in=['pending','failed']).count(),
+        'digest_pending_count':DailyTelegramDigest.objects.filter(delivery_status__in=['pending','failed']).count(),
     })

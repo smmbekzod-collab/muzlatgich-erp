@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from warehouse.monitor_alerts import scan_all_cameras
 from warehouse.telegram_sender import drain_alerts
+from warehouse.daily_digests import drain_digests
 
 
 class Command(BaseCommand):
@@ -13,7 +14,9 @@ class Command(BaseCommand):
         send_limit=max(0,min(100,options['send_limit']))
         checked,new=scan_all_cameras(max_cameras=camera_limit)
         result=drain_alerts(limit=send_limit)
+        digest=drain_digests(limit=send_limit)
         self.stdout.write(
             f'Tekshirildi: {checked}; yangi hodisa: {new}; '
             f'Telegram: yuborilgan {result["sent"]}, xato {result["failed"]}; '
+            f'kunlik hisobotlar: yuborilgan {digest["sent"]}, xato {digest["failed"]}; '
             f'bot sozlangan: {"yoq" if result["skipped"] else "ha"}')
