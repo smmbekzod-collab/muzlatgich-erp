@@ -6,6 +6,7 @@
   <div class="eyebrow">{{ camera.organization.name }} / {{ camera.facility.name|default:'Asosiy ombor' }}</div>
   <h1>{{ camera.number }}-kamera: nazorat jurnali</h1>
   <p class="muted">O‘lchovlar qo‘lda kiritiladi. Datchiklardan real vaqtda ma’lumot olinmayapti.</p>
+  <div class="overview-actions"><a class="button secondary" href="{% url 'monitor_csv' camera.pk %}">↓ Oxirgi 30 kun · CSV</a><button class="button secondary" type="button" data-print>Chop etish / PDF</button></div>
 </div>
 <div class="env-summary">
   <article class="env-summary-main">

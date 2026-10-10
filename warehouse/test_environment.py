@@ -122,6 +122,38 @@ class MonitoringTests(TestCase):
         self.assertTrue(age['days_warning'])
         self.assertEqual(age['storage_days'],16)
 
+
+    def test_monitor_csv_exports_only_authorized_camera_and_escapes_cells(self):
+        CameraEnvironmentReading.objects.create(camera=self.c,
+            measured_at=timezone.now()-timedelta(hours=1),
+            temperature=D('-1'),humidity=D('88'),note='=SUM(A1:A2)',
+            recorded_by=self.keeper)
+        CameraEnvironmentReading.objects.create(camera=self.c2,
+            measured_at=timezone.now()-timedelta(hours=1),
+            temperature=D('3'),humidity=D('50'),note='SECRET OTHER TENANT',
+            recorded_by=self.outsider)
+        self.client.force_login(self.keeper)
+        path=reverse('monitor_csv',args=[self.c.pk])
+        result=self.client.get(path)
+        self.assertEqual(result.status_code,200)
+        self.assertIn('text/csv',result['Content-Type'])
+        text=result.content.decode('utf-8-sig')
+        self.assertIn('=SUM(A1:A2)',text)
+        self.assertIn("'=SUM",text)
+        self.assertIn('Fargona',text)
+        self.assertNotIn('SECRET OTHER TENANT',text)
+        forbidden=self.client.get(reverse('monitor_csv',args=[self.c2.pk]))
+        self.assertEqual(forbidden.status_code,404)
+
+    def test_monitor_csv_excludes_old_readings(self):
+        CameraEnvironmentReading.objects.create(camera=self.c,
+            measured_at=timezone.now()-timedelta(days=32),
+            temperature=D('1'),humidity=D('90'),note='OLD READING',
+            recorded_by=self.keeper)
+        self.client.force_login(self.admin)
+        csv_text=self.client.get(reverse('monitor_csv',args=[self.c.pk])).content.decode('utf-8')
+        self.assertNotIn('OLD READING',csv_text)
+
     def test_csrf_and_unknown_action(self):
         browser=Client(enforce_csrf_checks=True)
         browser.force_login(self.keeper)

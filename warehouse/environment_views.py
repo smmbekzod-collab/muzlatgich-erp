@@ -1,11 +1,13 @@
 """Mobile-first, tenant-scoped manual temperature and humidity monitoring."""
+import csv
+from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Min, OuterRef, Subquery
-from django.http import Http404
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -130,3 +132,32 @@ def monitor_camera(request,camera_id):
         'can_configure':can_configure,'can_record':can_record,
         'summary':outcome,'history':history,'lots':lots,
     })
+
+
+@login_required
+@require_GET
+def monitor_csv(request,camera_id):
+    """Read-only, scoped 30-day export: at most 5000 measurements per camera."""
+    camera=_safe_camera(request.user,camera_id)
+    start=timezone.now()-timedelta(days=30)
+    response=HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition']=f'attachment; filename="camera_{camera.pk}_monitor_30_days.csv"'
+    response.write('\ufeff')
+    writer=csv.writer(response)
+    writer.writerow(['Tashkilot','Filial','Kamera','O‘lchangan sana-vaqt',
+                     'Harorat (°C)','Namlik (%)','Manba','Qayd qilgan','Izoh'])
+    def safe(value):
+        string=str(value or '')
+        if string.startswith(('=','+','-','@','\t','\r','\n')):
+            return "'" + string
+        return string
+    queryset=(CameraEnvironmentReading.objects.filter(
+        camera=camera,measured_at__gte=start).select_related('recorded_by')
+        .order_by('-measured_at','-pk')[:5000])
+    for x in queryset.iterator(chunk_size=500):
+        writer.writerow([
+            safe(camera.organization.name),safe(camera.facility.name if camera.facility_id else ''),
+            camera.number,timezone.localtime(x.measured_at).strftime('%Y-%m-%d %H:%M:%S'),
+            x.temperature,x.humidity,x.get_source_display(),safe(x.recorded_by.username),
+            safe(x.note)])
+    return response
