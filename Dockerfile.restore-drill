@@ -1,0 +1,5 @@
+FROM postgres:18
+COPY scripts/staging_restore_drill.sh /usr/local/bin/staging_restore_drill.sh
+RUN chmod 755 /usr/local/bin/staging_restore_drill.sh
+# Avoid the normal postgres image entrypoint; never initialize a public DB.
+ENTRYPOINT ["/usr/local/bin/staging_restore_drill.sh"]
