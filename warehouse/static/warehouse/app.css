@@ -386,15 +386,20 @@ button:focus-visible,.button:focus-visible,a:focus-visible { outline:3px solid #
 .notification-route-button{background:#f0f6f2;border:1px solid #d0e2d7;color:#286f4d;font-weight:700;font-size:12px;min-height:36px;border-radius:8px;padding:6px 12px}
 @media(max-width:730px){.notification-pause-grid{grid-template-columns:1fr}.notification-pause-panel{padding:15px}.notification-route-controls{justify-content:start;margin-top:10px}.telegram-route{display:block}}
 
-/* Android Chrome Custom Tab and overlay-permission recovery on QR scanner. */
-.scanner-permission-help{background:#f1f7f4;border:1px solid #bed9cb;border-radius:14px;padding:16px 18px;margin:16px 0 20px}
-.scanner-permission-help h2{font-size:16px;line-height:1.35;margin:0 0 8px;color:#174938}
-.scanner-permission-help p,.scanner-permission-help li{font-size:13px;line-height:1.65;color:#365b4b}
-.scanner-permission-help ol{margin:8px 0 14px;padding-left:22px}
-.scanner-permission-help li{padding:3px 0}
+/* Compact, accessible disclosure: Android/Chrome camera permission troubleshooting. */
+.scanner-permission-help{margin:12px 0 16px;border:1px solid #c6ddd1;border-radius:12px;background:#f3f8f5;overflow:hidden}
+.scanner-permission-help summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;cursor:pointer;color:#19523e;font-size:14px;font-weight:750;list-style:none;min-height:46px;box-sizing:border-box}
+.scanner-permission-help summary::-webkit-details-marker{display:none}
+.scanner-permission-help summary span{font-size:22px;line-height:1;transition:transform .15s ease}
+.scanner-permission-help[open] summary span{transform:rotate(180deg)}
+.scanner-permission-help summary:focus-visible{outline:2px solid #287c60;outline-offset:-3px}
+.scanner-help-content{padding:2px 16px 16px;border-top:1px solid #d9e8de}
+.scanner-help-content p,.scanner-help-content li{font-size:13px;line-height:1.65;color:#365b4b;overflow-wrap:anywhere}
+.scanner-help-content ol{margin:9px 0 12px;padding-left:22px}
+.scanner-help-content li{padding:3px 0}
 .scanner-help-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .scanner-help-actions button{font-size:13px;max-width:100%}
 .scanner-help-actions span{font-size:12px;color:#206243;flex:1}
 .scanner-url-fallback{display:block;max-width:100%;width:100%;margin-top:8px;box-sizing:border-box;font-size:12px}
 .scanner-url-fallback[hidden]{display:none}
-@media(max-width:550px){.scanner-permission-help{padding:13px 14px}.scanner-help-actions{display:block}.scanner-help-actions button{width:100%}.scanner-help-actions span{display:block;margin-top:8px}}
+@media(max-width:550px){.scanner-permission-help summary{padding:11px 13px}.scanner-help-content{padding:2px 13px 13px}.scanner-help-actions{display:block}.scanner-help-actions button{width:100%}.scanner-help-actions span{display:block;margin-top:8px}}

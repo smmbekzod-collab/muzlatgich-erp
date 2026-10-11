@@ -73,10 +73,16 @@ class QrAndFinanceAcceptanceTests(TestCase):
         self.assertContains(scan,'warehouse/vendor/html5-qrcode.min.js')
         self.assertContains(scan,'manual-open')
         self.assertContains(scan,'/app/lot/')
-        self.assertContains(scan,'Android kamera ruxsati ochilmasa')
+        self.assertContains(scan,'<details class="scanner-permission-help" id="scanner-help">',html=False)
+        self.assertContains(scan,'<summary>Skaner ishlamasa',html=False)
+        self.assertNotContains(scan,'<details class="scanner-permission-help" id="scanner-help" open')
+        self.assertContains(scan,'Заблокировано автоматически')
+        self.assertContains(scan,'Запрещено')
+        self.assertContains(scan,'muzlatgich-erp-v2-web-staging.up.railway.app')
+        self.assertContains(scan,'Reset permissions')
         self.assertContains(scan,'id="copy-scanner-url"')
         self.assertContains(scan,'id="scanner-url-fallback"')
-        self.assertContains(scan,'Chrome’da ochish')
+        self.assertContains(scan,'Request Camera Permissions')
 
     def test_http_intake_then_dispatch_preview_confirmation_and_receipt(self):
         today=timezone.localdate()

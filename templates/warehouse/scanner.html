@@ -5,21 +5,24 @@
   <div class="eyebrow">OMBORCHI / TEZKOR QIDIRUV</div>
   <h1>QR-kodni skanerlang</h1>
   <p class="muted">Telefon kamerasini QR-kodga qarating. Topilgan partiya avtomatik ochiladi.</p>
-  <aside class="scanner-permission-help" aria-labelledby="scanner-permission-title">
-    <h2 id="scanner-permission-title">Android kamera ruxsati ochilmasa</h2>
-    <p>Agar <strong>“Bu sayt kameraga ruxsat so‘ray olmaydi”</strong> degan xabar chiqsa, sahifani ilova ichidagi oynada emas, to‘liq <strong>Chrome yoki Samsung Internet</strong> brauzerida oching.</p>
-    <ol>
-      <li>Yuqoridagi uch nuqta (⋮) → <strong>Chrome’da ochish</strong> ni tanlang.</li>
-      <li>Suzuvchi oynalar, Telegram chat bubbles yoki ekran ustidagi boshqa ilova oynalarini yoping.</li>
-      <li>Telefon <strong>Sozlamalar → Ilovalar → Chrome → Ruxsatlar → Kamera</strong>: ruxsat bering va qayta urinib ko‘ring.</li>
-    </ol>
-    <div class="scanner-help-actions">
-      <button type="button" class="button secondary" id="copy-scanner-url">Skaner havolasidan nusxa olish</button>
-      <span id="scanner-copy-status" role="status" aria-live="polite"></span>
+  <details class="scanner-permission-help" id="scanner-help">
+    <summary>Skaner ishlamasa <span aria-hidden="true">⌄</span></summary>
+    <div class="scanner-help-content">
+      <p><strong>“NotAllowedError: Permission denied”</strong> yoki <strong>“Avtomatik bloklangan” (Заблокировано автоматически)</strong> yozuvi chiqsa, Chrome aynan shu ERP manziliga kamerani bloklagan bo‘lishi mumkin.</p>
+      <ol>
+        <li>Chrome’da <strong>⋮ → Sozlamalar (Настройки) → Sayt sozlamalari (Настройки сайтов) → Kamera (Камера)</strong> bo‘limini oching.</li>
+        <li><strong>Taqiqlangan (Запрещено)</strong> ro‘yxatini oching va <strong>muzlatgich-erp-v2-web-staging.up.railway.app</strong> manzilini tanlang.</li>
+        <li>Shu sayt uchun <strong>Ruxsat berish (Разрешить)</strong> ni belgilang. Zarur bo‘lsa, saytning uch nuqtali menyusida <strong>Ruxsatlarni tiklash / Reset permissions</strong> ni tanlang.</li>
+        <li>ERP skaneriga qayting, sahifani yangilang va <strong>Request Camera Permissions</strong> tugmasini qayta bosing.</li>
+      </ol>
+      <p class="help">Kamera hali ochilmasa, Chrome’ni to‘liq brauzer sifatida oching, suzuvchi oynalarni yoping va telefonning Chrome ilovasi uchun kamera ruxsatini tekshiring.</p>
+      <div class="scanner-help-actions">
+        <button type="button" class="button secondary" id="copy-scanner-url">Skaner havolasidan nusxa olish</button>
+        <span id="scanner-copy-status" role="status" aria-live="polite"></span>
+      </div>
+      <input type="text" id="scanner-url-fallback" readonly aria-label="Chrome brauzeriga qo‘yiladigan skaner havolasi" class="scanner-url-fallback" hidden>
     </div>
-    <input type="text" id="scanner-url-fallback" readonly aria-label="Chrome brauzeriga qo‘yiladigan skaner havolasi" class="scanner-url-fallback" hidden>
-    <p class="help">Kamera ochilmasa, pastdagi QR havolasi yoki partiya UUID kodini qo‘lda kiritish mumkin. Kamera ruxsatisiz boshqa tashkilot ma’lumotlari ochilmaydi.</p>
-  </aside>
+  </details>
   <div class="card scanner-card">
     <div class="scanner-frame" id="reader" aria-label="QR skanerlash maydoni"></div>
     <p id="scan-error" role="alert" aria-live="polite"></p>
@@ -30,7 +33,6 @@
         placeholder="UUID yoki QR havolasi" aria-describedby="scan-error">
       <button type="button" id="manual-open">Ochish →</button>
     </div>
-    <p class="help">Kameraga ruxsat berilmasa, tizim boshqa tashkilot ma’lumotlarini ko‘rsatmaydi. Kameradan foydalanish uchun brauzerga ruxsat bering.</p>
   </div>
 </div>
 {% endblock %}
