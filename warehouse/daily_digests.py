@@ -70,6 +70,10 @@ def compose_organization_report(org, report_date, slot_hour, now=None):
         created_at__gte=start,created_at__lte=now).aggregate(
         paid=Sum('amount'))['paid'] or ZERO
     exp=recent.aggregate(charged=Sum('charge'))['charged'] or ZERO
+    rent_invoices=CameraRentalInvoice.objects.filter(agreement__camera__organization=org)
+    rent_invoiced_recent=rent_invoices.filter(
+        created_at__gte=start,created_at__lte=now
+    ).aggregate(amount=Sum('amount'))['amount'] or ZERO
     rent_invoice_total=CameraRentalInvoice.objects.filter(
         agreement__camera__organization=org).aggregate(
         amount=Sum('amount'))['amount'] or ZERO
@@ -110,7 +114,9 @@ def compose_organization_report(org, report_date, slot_hour, now=None):
         f'• Kirim: {pretty(received[0])} ta, {pretty(received[1])} yashik, {kg(received[2])} kg\n'
         f'• Chiqim: {pretty(dispatched[0])} ta, {pretty(dispatched[1])} yashik, {kg(dispatched[2])} kg\n\n'
         f'💰 MOLIYA\n'
-        f'• Davrda hisoblangan xizmat: {pretty(exp)} so‘m\n'
+        f'• Davrda yuk bo‘yicha xizmat haqi: {pretty(exp)} so‘m\n'
+        f'• Davrda chiqarilgan kamera ijarasi hisobi: {pretty(rent_invoiced_recent)} so‘m\n'
+        f'• Davrda jami hisoblangan: {pretty(exp+rent_invoiced_recent)} so‘m\n'
         f'• Davrda olingan to‘lov: {pretty(money_received+rent_received)} so‘m\n'
         f'• Yuklar bo‘yicha mavjud qarz: {pretty(lot_debt)} so‘m\n'
         f'• Kamera ijarasi bo‘yicha qarz: {pretty(rent_debt)} so‘m\n'

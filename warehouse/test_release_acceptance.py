@@ -211,6 +211,17 @@ class QrAndFinanceAcceptanceTests(TestCase):
         qr=self.client.get(reverse('qr',args=[self.alien.pk]))
         self.assertEqual(qr.status_code,200)
 
+
+    def test_daily_digest_separates_rental_invoice_and_per_kg_charge(self):
+        from warehouse.daily_digests import compose_organization_report
+        report=compose_organization_report(
+            self.org,timezone.localdate(),8,now=timezone.now())
+        self.assertIn('Davrda yuk bo‘yicha xizmat haqi: 250 000 so‘m',report)
+        self.assertIn('Davrda chiqarilgan kamera ijarasi hisobi: 20 000 000 so‘m',report)
+        self.assertIn('Davrda jami hisoblangan: 20 250 000 so‘m',report)
+        self.assertIn('Davrda olingan to‘lov: 5 250 000 so‘m',report)
+        self.assertIn('Kamera ijarasi bo‘yicha qarz: 15 000 000 so‘m',report)
+
     def test_customer_filter_export_does_not_leak_other_tenant(self):
         accountant=get_user_model().objects.get(username='demo_agro_buxgalter')
         self.client.force_login(accountant)
