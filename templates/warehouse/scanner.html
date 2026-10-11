@@ -5,6 +5,21 @@
   <div class="eyebrow">OMBORCHI / TEZKOR QIDIRUV</div>
   <h1>QR-kodni skanerlang</h1>
   <p class="muted">Telefon kamerasini QR-kodga qarating. Topilgan partiya avtomatik ochiladi.</p>
+  <aside class="scanner-permission-help" aria-labelledby="scanner-permission-title">
+    <h2 id="scanner-permission-title">Android kamera ruxsati ochilmasa</h2>
+    <p>Agar <strong>“Bu sayt kameraga ruxsat so‘ray olmaydi”</strong> degan xabar chiqsa, sahifani ilova ichidagi oynada emas, to‘liq <strong>Chrome yoki Samsung Internet</strong> brauzerida oching.</p>
+    <ol>
+      <li>Yuqoridagi uch nuqta (⋮) → <strong>Chrome’da ochish</strong> ni tanlang.</li>
+      <li>Suzuvchi oynalar, Telegram chat bubbles yoki ekran ustidagi boshqa ilova oynalarini yoping.</li>
+      <li>Telefon <strong>Sozlamalar → Ilovalar → Chrome → Ruxsatlar → Kamera</strong>: ruxsat bering va qayta urinib ko‘ring.</li>
+    </ol>
+    <div class="scanner-help-actions">
+      <button type="button" class="button secondary" id="copy-scanner-url">Skaner havolasidan nusxa olish</button>
+      <span id="scanner-copy-status" role="status" aria-live="polite"></span>
+    </div>
+    <input type="text" id="scanner-url-fallback" readonly aria-label="Chrome brauzeriga qo‘yiladigan skaner havolasi" class="scanner-url-fallback" hidden>
+    <p class="help">Kamera ochilmasa, pastdagi QR havolasi yoki partiya UUID kodini qo‘lda kiritish mumkin. Kamera ruxsatisiz boshqa tashkilot ma’lumotlari ochilmaydi.</p>
+  </aside>
   <div class="card scanner-card">
     <div class="scanner-frame" id="reader" aria-label="QR skanerlash maydoni"></div>
     <p id="scan-error" role="alert" aria-live="polite"></p>
@@ -26,6 +41,23 @@
   let busy = false;
   const error = document.getElementById('scan-error');
   const manual = document.getElementById('manual-id');
+  const copyBtn = document.getElementById('copy-scanner-url');
+  const copyStatus = document.getElementById('scanner-copy-status');
+  const copyFallback = document.getElementById('scanner-url-fallback');
+  copyBtn.addEventListener('click', async () => {
+    const url = window.location.href;
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(url);
+      copyStatus.textContent = 'Havola nusxalandi. Chrome’ni ochib, manzil satriga qo‘ying.';
+    } catch (_) {
+      copyFallback.hidden = false;
+      copyFallback.value = url;
+      copyFallback.focus();
+      copyFallback.select();
+      copyStatus.textContent = 'Havola tanlandi. “Nusxa olish”ni bosing, keyin Chrome’da oching.';
+    }
+  });
   function openLot(raw) {
     const text = String(raw || '').trim();
     const match = text.match(/^(?:https?:\/\/[^/]+\/app\/lot\/)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i);

@@ -73,6 +73,10 @@ class QrAndFinanceAcceptanceTests(TestCase):
         self.assertContains(scan,'warehouse/vendor/html5-qrcode.min.js')
         self.assertContains(scan,'manual-open')
         self.assertContains(scan,'/app/lot/')
+        self.assertContains(scan,'Android kamera ruxsati ochilmasa')
+        self.assertContains(scan,'id="copy-scanner-url"')
+        self.assertContains(scan,'id="scanner-url-fallback"')
+        self.assertContains(scan,'Chrome’da ochish')
 
     def test_http_intake_then_dispatch_preview_confirmation_and_receipt(self):
         today=timezone.localdate()
