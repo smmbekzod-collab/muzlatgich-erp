@@ -34,7 +34,7 @@ def main():
         current=cur.fetchone()[0]
     if current != 'railway':
         raise SystemExit('REFUSED: unexpected STAGING source database name')
-    settings.DATABASES['default']['TEST']={'NAME':temporary}
+    settings.DATABASES['default'].setdefault('TEST', {})['NAME']=temporary
     print(f'ISOLATED STAGING PostgreSQL TEST DB {temporary}; source={current}; '
           f'expected automatic cleanup after test',flush=True)
     call_command('test','warehouse.test_concurrency_postgres',verbosity=2,interactive=False)
