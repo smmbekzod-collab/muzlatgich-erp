@@ -1,0 +1,6 @@
+# One-shot backup/restore verification only; never used by the ERP web service.
+FROM postgres:18-alpine
+COPY scripts/staging_backup_restore_drill.sh /usr/local/bin/staging_backup_restore_drill.sh
+RUN chmod 0555 /usr/local/bin/staging_backup_restore_drill.sh
+USER postgres
+CMD ["sh", "/usr/local/bin/staging_backup_restore_drill.sh"]
