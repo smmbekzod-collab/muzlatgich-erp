@@ -4,7 +4,7 @@
   <a class="back-link" href="{% url 'dashboard' %}">← Ombor bosh sahifasi</a>
   <div class="eyebrow">OMBORCHI / TEZKOR QIDIRUV</div>
   <h1>QR-kodni skanerlang</h1>
-  <p class="muted">Telefon kamerasini QR-kodga qarating. Topilgan partiya avtomatik ochiladi.</p>
+  <p class="muted">Orqa kamerani QR-kodga qarating. Topilgan partiya avtomatik ochiladi.</p>
   <details class="scanner-permission-help" id="scanner-help">
     <summary>Skaner ishlamasa <span aria-hidden="true">⌄</span></summary>
     <div class="scanner-help-content">
@@ -75,7 +75,15 @@
     return;
   }
   try {
-    const scanner = new Html5QrcodeScanner('reader', {fps:10, qrbox:{width:220,height:220}}, false);
+    // QR labels are on crates; prefer the phone's REAR camera, not the selfie camera.
+    // Ignore a previously saved front-camera choice. Non-exact facingMode is
+    // intentional: keep a graceful fallback on devices without a rear camera.
+    const scanner = new Html5QrcodeScanner('reader', {
+      fps:10,
+      qrbox:{width:220,height:220},
+      rememberLastUsedCamera:false,
+      videoConstraints:{facingMode:'environment'}
+    }, false);
     scanner.render(openLot, () => {});
   } catch (err) { error.textContent = 'Kamerani ishga tushirib bo‘lmadi. Kodni qo‘lda kiriting.'; }
 })();

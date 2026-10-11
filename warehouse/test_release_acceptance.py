@@ -83,6 +83,10 @@ class QrAndFinanceAcceptanceTests(TestCase):
         self.assertContains(scan,'id="copy-scanner-url"')
         self.assertContains(scan,'id="scanner-url-fallback"')
         self.assertContains(scan,'Request Camera Permissions')
+        # Do not default to the selfie camera or a cached prior selection.
+        self.assertContains(scan,"rememberLastUsedCamera:false")
+        self.assertContains(scan,"videoConstraints:{facingMode:'environment'}")
+        self.assertContains(scan,'Orqa kamerani QR-kodga qarating')
 
     def test_http_intake_then_dispatch_preview_confirmation_and_receipt(self):
         today=timezone.localdate()
