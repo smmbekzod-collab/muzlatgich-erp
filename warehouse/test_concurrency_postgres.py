@@ -80,6 +80,43 @@ class PostgreSQLConcurrencyTests(TransactionTestCase):
         self.assertEqual(self.lot.net,D('40'))
         self.assertEqual(self.lot.operations.filter(kind='dispatch').count(),1)
 
+    def test_twelve_simultaneous_dispatches_are_serialized_correctly(self):
+        """Twelve employees attempt to dispatch from a ten-box lot."""
+        keys=[uuid.uuid4() for _ in range(12)]
+        def dispatch(key):
+            try:
+                op=act(self.root,self.lot.pk,'dispatch',{
+                    'request_key':key,'date':self.today,
+                    'boxes':1,'gross':D('11'),'tare':D('1'),
+                    'payment':D('2500'),'payment_method':'cash',
+                    'note':'12-user stress'})
+                return ('ok',op.pk)
+            except ValidationError:
+                return ('rejected',None)
+        outcomes=self.race(keys,dispatch)
+        self.assertEqual(sum(x[0]=='ok' for x in outcomes),10)
+        self.assertEqual(sum(x[0]=='rejected' for x in outcomes),2)
+        self.lot.refresh_from_db()
+        self.assertEqual((self.lot.boxes,self.lot.net),(0,D('0')))
+        self.assertIsNotNone(self.lot.closed_on)
+        self.assertEqual(self.lot.operations.filter(kind='dispatch').count(),10)
+        summary=totals(self.lot)
+        self.assertEqual(summary['charged'],D('25000'))
+        self.assertEqual(summary['paid'],D('25000'))
+        self.assertEqual(summary['debt'],0)
+
+    def test_eight_parallel_distinct_payments_are_all_counted(self):
+        keys=[uuid.uuid4() for _ in range(8)]
+        def pay(key):
+            op=act(self.root,self.lot.pk,'payment',{
+                'request_key':key,'date':self.today,'payment':D('100'),
+                'payment_method':'bank','note':'parallel independent payments'})
+            return op.pk
+        results=self.race(keys,pay)
+        self.assertEqual(len(set(results)),8)
+        self.assertEqual(self.lot.operations.filter(kind='payment').count(),8)
+        self.assertEqual(totals(self.lot)['paid'],D('800'))
+
     def test_duplicate_payment_key_only_records_one_payment(self):
         key=uuid.uuid4()
         def pay(_):
