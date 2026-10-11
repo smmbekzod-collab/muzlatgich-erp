@@ -4,8 +4,11 @@ Creates a random TEST database through Django's test runner, and drops it when
 the tests end. Never operates on staging business tables.
 """
 import os
+import sys
 import uuid
 import django
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 STAGING_ENV = "79dae0a2-be02-4dc2-ac16-3675ffc1aa62"
 
