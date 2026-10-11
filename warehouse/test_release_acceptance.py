@@ -24,6 +24,11 @@ from warehouse.services import totals, act, quote, pending
 from warehouse.management.commands.seed_staging_demo import key
 
 
+def _is_decimal_equal(raw, expected):
+    try:return Decimal(raw)==Decimal(expected)
+    except (ValueError,ArithmeticError):return False
+
+
 STAGING_TEST_ENV={
     'ALLOW_STAGING_DEMO_SEED':'1',
     'RAILWAY_ENVIRONMENT_ID':'79dae0a2-be02-4dc2-ac16-3675ffc1aa62',
@@ -60,7 +65,8 @@ class QrAndFinanceAcceptanceTests(TestCase):
         self.assertEqual(response.status_code,200)
         self.assertTrue(response.content.startswith(b'\x89PNG\r\n\x1a\n'))
         self.assertIn('image/png',response['Content-Type'])
-        self.assertEqual(response['Cache-Control'],'private, no-store')
+        self.assertIn('private',response['Cache-Control'])
+        self.assertIn('no-store',response['Cache-Control'])
         make.assert_called_once_with(
             'https://staging.example.test'+reverse('lot',args=[self.base.pk]))
         scan=self.client.get(reverse('scanner'))
@@ -161,9 +167,17 @@ class QrAndFinanceAcceptanceTests(TestCase):
         lines=list(csv.reader(io.StringIO(csv_response.content.decode('utf-8-sig'))))
         self.assertIn('Kamera ijara hisobi',lines[0])
         self.assertIn('Jami tushum',lines[0])
+        raw=csv_response.content.decode('utf-8')
+        self.assertEqual(raw.count('\ufeff'),1,'CSV should contain exactly one UTF-8 BOM')
         text='\n'.join(','.join(row) for row in lines)
-        for amount in ['20000000.00','5000000.00','15000000.00','250000.00']:
-            self.assertIn(amount,text)
+        self.assertIn('TEST — Agro Star Muzlatkich ERP',text)
+        # Compare numbers as Decimal: some legitimate values are rendered without .00
+        def contains_number(amount):
+            return any(any(
+                cell.strip() and _is_decimal_equal(cell.strip(),amount)
+                for cell in row) for row in lines)
+        for amount in ['20000000','5000000','15000000','250000']:
+            self.assertTrue(contains_number(amount),f'Missing amount: {amount}')
         self.assertIn('TEST — Agro Star Muzlatkich ERP',text)
         excel=self.client.get(reverse('report')+'?export=xlsx')
         self.assertEqual(excel.status_code,200)

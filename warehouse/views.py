@@ -287,7 +287,7 @@ def report(request):
     if request.GET.get('export')=='xlsx':
         return general_excel(rows, debts, start, end, rent_invoices, rent_payments)
     if request.GET.get('export')=='csv':
-        response=HttpResponse(content_type='text/csv; charset=utf-8-sig');response['Content-Disposition']='attachment; filename="muzlatgich-erp-hisobot.csv"';response.write('\ufeff')
+        response=HttpResponse(content_type='text/csv; charset=utf-8');response['Content-Disposition']='attachment; filename="muzlatgich-erp-hisobot.csv"';response.write('\ufeff')
         writer=csv.writer(response);writer.writerow(['Tashkilot','Kamera','Sovutish/tier hisob','Partiya saqlamasi','Kamera ijara hisobi','Yuk to‘lovlari','Kamera ijara to‘lovlari','Jami tushum','Xarajat','Pul oqimi','Davr boshi','Davr oxiri'])
         def safe(x):
             text=str(x);return "'"+text if text.startswith(('=','+','-','@','\t','\r')) else text

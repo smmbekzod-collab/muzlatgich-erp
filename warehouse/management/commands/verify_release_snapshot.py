@@ -87,7 +87,10 @@ class Command(BaseCommand):
                     if book.testzip() is not None or 'xl/workbook.xml' not in book.namelist():
                         raise CommandError('Excel ZIP ichki tuzilishi yaroqsiz')
             if 'export=csv' in path:
-                text=response.content.decode('utf-8-sig')
+                raw=response.content.decode('utf-8')
+                if raw.count('\ufeff')!=1:
+                    raise CommandError('CSV kodlash nuqsoni: BOM bir martadan ko‘p yozilgan')
+                text=raw.lstrip('\ufeff')
                 csv_rows=list(csv.reader(io.StringIO(text)))
                 if not csv_rows or 'Kamera ijara hisobi' not in csv_rows[0]:
                     raise CommandError('CSV ustunlari noto‘g‘ri')
