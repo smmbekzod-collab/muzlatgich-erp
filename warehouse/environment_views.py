@@ -1,5 +1,6 @@
 """Mobile-first, tenant-scoped manual temperature and humidity monitoring."""
 import csv
+from decimal import Decimal
 from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -15,11 +16,11 @@ from django.views.decorators.http import require_http_methods, require_GET
 
 from core import access
 from core.models import Camera
-from .environment_forms import CameraEnvironmentPolicyForm, CameraEnvironmentReadingForm
+from .environment_forms import CameraEnvironmentPolicyForm, CameraEnvironmentReadingForm, CameraCropPresetForm
 from .environment_logic import assess_camera
-from .models import CameraEnvironmentPolicy, CameraEnvironmentReading, Lot, CameraEnvironmentAlert
+from .models import CameraEnvironmentPolicy, CameraEnvironmentReading, CameraEnvironmentProfileChange, Lot, CameraEnvironmentAlert
 from .monitor_alerts import reconcile_camera
-from .crop_profiles import REFERENCES, camera_crop_status
+from .crop_profiles import REFERENCES, PRESET_LIMITS, classify_product, camera_crop_status
 
 
 def _has_permission(user,camera,ability):
@@ -34,6 +35,28 @@ def _safe_camera(user,camera_id):
     return get_object_or_404(
         access.cameras(user).select_related('organization','facility'),
         pk=camera_id, organization__is_active=True)
+
+
+PROFILE_FIELDS=('min_temperature','max_temperature','min_humidity','max_humidity')
+
+def _policy_snapshot(policy):
+    return {key:(str(getattr(policy,key)) if policy is not None and
+                 getattr(policy,key) is not None else None) for key in PROFILE_FIELDS}
+
+def _log_profile_change(camera, before, after, user):
+    previous_profile=before.profile_code if before is not None else ''
+    old_limits=_policy_snapshot(before)
+    new_limits=_policy_snapshot(after)
+    if (previous_profile,new_limits)==(after.profile_code,old_limits):
+        return
+    CameraEnvironmentProfileChange.objects.create(
+        camera=camera,
+        previous_profile=previous_profile,
+        current_profile=after.profile_code,
+        previous_limits=old_limits,
+        current_limits=new_limits,
+        changed_by=user,
+    )
 
 
 @login_required
@@ -90,20 +113,64 @@ def monitor_camera(request,camera_id):
         request.POST if action=='policy' else None, instance=policy, prefix='policy')
     reading_form=CameraEnvironmentReadingForm(
         request.POST if action=='reading' else None,prefix='reading')
+    preset_form=CameraCropPresetForm(
+        request.POST if action=='preset' else None,prefix='preset',
+        initial={'profile_code':existing.profile_code if existing else ''})
     if request.method=='POST':
         if action=='policy':
             if not can_configure:raise PermissionDenied('Me’yorlarni faqat tarif boshqarish huquqli admin sozlaydi.')
             if policy_form.is_valid():
                 with transaction.atomic():
                     Camera.objects.select_for_update().get(pk=camera.pk)
+                    previous=CameraEnvironmentPolicy.objects.filter(camera=camera).first()
+                    # Editing thresholds manually opts out of the automatic product preset.
                     saved=policy_form.save(commit=False)
                     saved.camera=camera
+                    saved.profile_code=''
                     saved.updated_by=request.user
                     saved.full_clean()
                     saved.save()
+                    _log_profile_change(camera,previous,saved,request.user)
                     reconcile_camera(camera.pk)
                 messages.success(request,'Harorat, namlik va nazorat muddatlari saqlandi.')
                 return redirect('monitor_camera',camera_id=camera.pk)
+        elif action=='preset':
+            if not can_configure:
+                raise PermissionDenied('Mahsulot me’yorini faqat vakolatli admin tanlay oladi.')
+            if preset_form.is_valid():
+                code=preset_form.cleaned_data['profile_code']
+                values=PRESET_LIMITS[code]
+                with transaction.atomic():
+                    Camera.objects.select_for_update().get(pk=camera.pk)
+                    if not camera.is_active:
+                        preset_form.add_error(None,'Nofaol kamera uchun rejim o‘rnatib bo‘lmaydi.')
+                    else:
+                        # Only auto-apply when active inventory clearly matches the product.
+                        names=list(Lot.objects.filter(camera=camera,closed_on__isnull=True)
+                                   .values_list('product',flat=True).distinct()[:129])
+                        kinds={classify_product(name) for name in names}
+                        if len(names)>128 or None in kinds or kinds.difference({values['commodity']}):
+                            preset_form.add_error(None,
+                                'Kamerada boshqa yoki aniqlanmagan mahsulot partiyasi mavjud. '
+                                'Rejim almashtirishdan oldin partiyalarni tekshiring.')
+                        else:
+                            before=CameraEnvironmentPolicy.objects.filter(camera=camera).first()
+                            saved=before or CameraEnvironmentPolicy(camera=camera,updated_by=request.user)
+                            saved.profile_code=code
+                            saved.min_temperature=Decimal(values['temperature'][0])
+                            saved.max_temperature=Decimal(values['temperature'][1])
+                            saved.min_humidity=Decimal(values['humidity'][0])
+                            saved.max_humidity=Decimal(values['humidity'][1])
+                            saved.updated_by=request.user
+                            saved.full_clean()
+                            saved.save()
+                            _log_profile_change(camera,before,saved,request.user)
+                            reconcile_camera(camera.pk)
+                if not preset_form.errors:
+                    messages.success(request,
+                        'Mahsulot rejimi saqlandi. Monitoring chegaralari avtomatik yangilandi. '
+                        'Sovutish kontrolleri boshqarilmaydi.')
+                    return redirect('monitor_camera',camera_id=camera.pk)
         elif action=='reading':
             if not can_record:raise PermissionDenied('Harorat va namlik qayd etish huquqi yo‘q.')
             if not camera.is_active:raise PermissionDenied('Faol bo‘lmagan kameraga yangi qayd kiritib bo‘lmaydi.')
@@ -158,6 +225,9 @@ def monitor_camera(request,camera_id):
     return render(request,'warehouse/monitor_camera.html',{
         'today':timezone.localdate(),'camera':camera,
         'policy':existing,'policy_form':policy_form,'reading_form':reading_form,
+        'preset_form':preset_form,
+        'profile_changes':CameraEnvironmentProfileChange.objects.filter(
+            camera=camera).select_related('changed_by')[:10],
         'can_configure':can_configure,'can_record':can_record,
         'summary':outcome,'history':history,'lots':lots,
         'crop_references':REFERENCES,'crop_status':crop_status,
