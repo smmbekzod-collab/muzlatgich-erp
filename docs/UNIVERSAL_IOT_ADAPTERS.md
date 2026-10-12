@@ -75,3 +75,20 @@ Production releasega hech narsa qo‘shilmaydi.
 Tashkilot administratori IoT Hubda gateway qatoridan 'Konfiguratsiyani yuklab olish' tugmasini bosadi. Endpoint: /app/iot/gateway/<UUID>/edge-config.json. Faqat o‘z tashkilotining vakolatli administratori yuklay oladi. Begona tashkilot gateway eksportiga ruxsat yo‘q.
 
 Eksportda datchik kodi, kamera raqami, ulanish turi va Modbus manzili bor; **Bearer token, MQTT paroli, sensor parollari berilmaydi**. Noma’lum registrlar null, URL/topic/path esa bo‘sh. Fayl vendor pasportidagi haqiqiy ma’lumotlar bilan to‘ldirilmaguncha ishlatishga tayyor EMAS. Maxfiy sozlamalar faqat mahalliy muhit o‘zgaruvchilarida bo‘lsin.
+
+## 9. Konfiguratsiyani qurilmaga ulanmasdan tekshirish
+
+ERPdan yuklangan JSON hali ishlaydigan sensor sozlamasi emas: temperature_register, humidity_register, scale va Wi-Fi API URL/path, MQTT topic va timestamp ishlab chiqaruvchi pasporti asosida to‘ldiriladi. Eksportda token/parol bo‘lmaydi.
+
+~~~bash
+# Qurilmaga ulanmasdan avval barcha sozlamalarni tekshirish:
+python -m scripts.iot_edge_bridge --config iot-edge-local.json validate
+# Tekshiruvdan keyin mahalliy Modbus/Wi-Fi o‘qish:
+python -m scripts.iot_edge_bridge --config iot-edge-local.json poll
+# Navbatni HTTPS orqali test ERPga yuborish:
+python -m scripts.iot_gateway_shipper flush
+~~~
+
+Validate buyrug‘i internet/datchik bilan aloqa qilmaydi: noto‘g‘ri yoki bo‘sh registr, URL, MQTT TLS va field xaritalarini rad etadi. Bu versiya faqat ikkala qiymatni (harorat va namlik) beradigan sensorlarni qo‘llaydi.
+
+**Ogohlantirish:** hatto rasmiy Modbus registrlari kiritilganda ham parallel termometr/namlik o‘lchagich bilan kalibrovka sinovi kerak. Dastur noto‘g‘ri scalingni har doim o‘zi aniqlay olmaydi. Mahalliy mustaqil sirena/rele tavsiya qilinadi.
