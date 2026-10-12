@@ -50,6 +50,17 @@ def reconcile_camera(camera_id,now=None):
     oldest=Lot.objects.filter(camera=camera,closed_on__isnull=True).aggregate(old=Min('received_on'))['old']
     conditions=(camera_issues(policy,reading,oldest,now) if camera.is_active and camera.organization.is_active
                 else {})
+    # A once-online sensor whose heartbeat expires raises one camera incident.
+    # Never alarm on a newly enrolled, never-connected device.
+    from .iot_models import IoTDevice
+    lost=[]
+    for device in IoTDevice.objects.filter(camera=camera,is_active=True,
+            gateway__is_active=True).select_related('gateway'):
+        if device.last_seen_at is not None and now - device.last_seen_at > timedelta(
+                minutes=device.gateway.offline_minutes):
+            lost.append(device.code)
+    if lost and camera.is_active and camera.organization.is_active:
+        conditions['sensor_offline']=f'{len(lost)} ta IoT datchikdan signal kelmayapti: '+', '.join(lost[:5])
     current={a.kind:a for a in CameraEnvironmentAlert.objects.select_for_update().filter(
         camera=camera,resolved_at__isnull=True)}
     channel=TelegramAlertDestination.objects.filter(organization_id=camera.organization_id,enabled=True).first()
