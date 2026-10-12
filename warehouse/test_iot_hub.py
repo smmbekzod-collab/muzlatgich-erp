@@ -1,0 +1,140 @@
+"""Offline regression tests; never contact devices or Telegram."""
+import json
+from datetime import timedelta
+from unittest.mock import patch
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+from django.contrib.auth.hashers import make_password
+from core.models import Organization, Facility, Camera, Membership
+from .iot_models import IoTGateway, IoTDevice, IoTReceipt
+from .models import CameraEnvironmentReading
+
+
+class IoTHubTests(TestCase):
+    def setUp(self):
+        U=get_user_model()
+        self.admin=U.objects.create_user('iot_owner',password='TestPass12345!',is_staff=True)
+        self.admin_b=U.objects.create_user('iot_other',password='TestPass12345!',is_staff=True)
+        self.o=Organization.objects.create(name='Site A',code='iot-a',camera_limit=25)
+        self.b=Organization.objects.create(name='Site B',code='iot-b',camera_limit=25)
+        self.f=Facility.objects.create(organization=self.o,code='main',name='Site A main')
+        self.fb=Facility.objects.create(organization=self.b,code='main',name='Site B main')
+        self.cameras=[
+            Camera.objects.create(organization=self.o,facility=self.f,number=i)
+            for i in range(1,26)]
+        self.cb=Camera.objects.create(organization=self.b,facility=self.fb,number=1)
+        Membership.objects.create(user=self.admin,organization=self.o,
+            role='admin',all_cameras=True,all_facilities=True)
+        Membership.objects.create(user=self.admin_b,organization=self.b,
+            role='admin',all_cameras=True,all_facilities=True)
+        self.secret='secret-very-long-and-unguessable-abcdef1234567890'
+        self.ga=IoTGateway.objects.create(organization=self.o,facility=self.f,
+            name='Gateway 1',created_by=self.admin,
+            transport='rs485',secret_hash=make_password(self.secret))
+        self.gb=IoTGateway.objects.create(organization=self.b,facility=self.fb,
+            name='Gateway B',created_by=self.admin_b,
+            transport='rs485',secret_hash=make_password('different-secret-very-long-4567890'))
+        self.sensors=[
+            IoTDevice.objects.create(gateway=self.ga,camera=cam,code=f's{i:02d}',
+                name=f'Sensor {i}',address=i)
+            for i,cam in enumerate(self.cameras,1)]
+        self.sb=IoTDevice.objects.create(gateway=self.gb,camera=self.cb,
+            code='b01',name='Other sensor',address=1)
+        self.url=reverse('iot_readings')
+        self.auth={'HTTP_AUTHORIZATION':f'Bearer {self.ga.pk}.{self.secret}'}
+
+    def item(self,index=0,**overrides):
+        obj={
+            'device_code':self.sensors[index].code,
+            'event_id':f'unique-event-{index}',
+            'measured_at':timezone.now().isoformat(),
+            'temperature':'1.5','humidity':'85'
+        }
+        obj.update(overrides)
+        return obj
+
+    def send(self, items, **extra):
+        return self.client.post(self.url,
+            data=json.dumps({'readings':items}),content_type='application/json',
+            **(extra or self.auth))
+
+    @patch('warehouse.iot_api.reconcile_camera')
+    def test_25_cameras_batch_replay_and_no_duplicate_alerts(self,reconcile):
+        items=[self.item(index=i) for i in range(25)]
+        with self.captureOnCommitCallbacks(execute=True):
+            r=self.send(items)
+        self.assertEqual(r.status_code,200,r.content)
+        self.assertEqual(r.json()['inserted'],25)
+        self.assertEqual(CameraEnvironmentReading.objects.count(),25)
+        self.assertEqual(IoTReceipt.objects.count(),25)
+        self.assertEqual(reconcile.call_count,25)
+        with self.captureOnCommitCallbacks(execute=True):
+            replay=self.send(items)
+        self.assertEqual(replay.status_code,200,replay.content)
+        self.assertEqual(replay.json()['duplicates'],25)
+        self.assertEqual(IoTReceipt.objects.count(),25)
+        self.assertEqual(CameraEnvironmentReading.objects.count(),25)
+        self.assertEqual(reconcile.call_count,25)
+
+    def test_forged_cross_organization_device_rejected(self):
+        response=self.send([self.item(device_code='b01')])
+        self.assertEqual(response.status_code,400)
+        self.assertEqual(CameraEnvironmentReading.objects.count(),0)
+
+    def test_wrong_secret_and_anonymous_denied(self):
+        self.assertEqual(self.send([self.item()],HTTP_AUTHORIZATION='Bearer invalid').status_code,401)
+        self.assertEqual(self.client.post(self.url,
+            data=json.dumps({'readings':[self.item()]}),
+            content_type='application/json').status_code,401)
+        self.assertEqual(CameraEnvironmentReading.objects.count(),0)
+
+    def test_conflicting_event_id_rolls_back_whole_batch(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.assertEqual(self.send([self.item()]).status_code,200)
+        r=self.send([self.item(temperature='7.1')])
+        self.assertEqual(r.status_code,409)
+        self.assertEqual(IoTReceipt.objects.count(),1)
+
+    def test_sensor_wrong_gateway_or_facility(self):
+        sensor=IoTDevice(gateway=self.ga,camera=self.cb,code='wrong',
+            name='bad sensor',address=27)
+        from django.core.exceptions import ValidationError
+        with self.assertRaises(ValidationError):sensor.full_clean()
+        g=IoTGateway(organization=self.o,facility=self.fb,name='wrong',
+            created_by=self.admin,secret_hash='test')
+        with self.assertRaises(ValidationError):g.full_clean()
+
+    def test_invalid_measurements_never_saved(self):
+        old=(timezone.now()-timedelta(days=3)).isoformat()
+        for item in [self.item(measured_at=old),
+                     self.item(measured_at='2026-10-12T00:00:00'),
+                     self.item(temperature='NaN'),
+                     self.item(humidity='101')]:
+            self.assertEqual(self.send([item]).status_code,400)
+        self.assertFalse(IoTReceipt.objects.exists())
+
+    def test_tenant_panel_and_gateway_creation(self):
+        self.client.force_login(self.admin)
+        page=self.client.get(reverse('iot_hub'))
+        self.assertEqual(page.status_code,200)
+        self.assertContains(page,'Gateway 1')
+        self.assertNotContains(page,'Gateway B')
+        self.assertEqual(self.client.post(reverse('iot_hub'),data={
+            'action':'create_gateway','gateway-organization':str(self.b.pk),
+            'gateway-facility':str(self.fb.pk),'gateway-name':'Intruder',
+            'gateway-transport':'rs485','gateway-offline_minutes':'15'}).status_code,200)
+        self.assertFalse(IoTGateway.objects.filter(name='Intruder').exists())
+        self.client.force_login(self.admin_b)
+        self.assertNotContains(self.client.get(reverse('iot_hub')),'Gateway 1')
+
+    def test_disabled_gateway_rejects_new_measurements(self):
+        self.ga.is_active=False
+        self.ga.save()
+        self.assertEqual(self.send([self.item()]).status_code,401)
+
+    def test_25_cam_limit_is_per_tenant_not_global(self):
+        self.assertEqual(len(self.cameras),25)
+        self.assertEqual(self.o.cameras.count(),25)
+        self.assertEqual(self.b.cameras.count(),1)
