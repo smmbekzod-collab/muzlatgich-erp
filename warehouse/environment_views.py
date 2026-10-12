@@ -1,5 +1,6 @@
 """Mobile-first, tenant-scoped manual temperature and humidity monitoring."""
 import csv
+from copy import copy
 from decimal import Decimal
 from datetime import timedelta
 from django.contrib import messages
@@ -155,6 +156,7 @@ def monitor_camera(request,camera_id):
                                 'Rejim almashtirishdan oldin partiyalarni tekshiring.')
                         else:
                             before=CameraEnvironmentPolicy.objects.filter(camera=camera).first()
+                            previous_snapshot=copy(before) if before is not None else None
                             saved=before or CameraEnvironmentPolicy(camera=camera,updated_by=request.user)
                             saved.profile_code=code
                             saved.min_temperature=Decimal(values['temperature'][0])
@@ -164,7 +166,7 @@ def monitor_camera(request,camera_id):
                             saved.updated_by=request.user
                             saved.full_clean()
                             saved.save()
-                            _log_profile_change(camera,before,saved,request.user)
+                            _log_profile_change(camera,previous_snapshot,saved,request.user)
                             reconcile_camera(camera.pk)
                 if not preset_form.errors:
                     messages.success(request,
