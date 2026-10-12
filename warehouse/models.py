@@ -225,6 +225,10 @@ class CameraEnvironmentPolicy(models.Model):
     """Optional tenant-owned camera limits. No invented defaults for products."""
     camera = models.OneToOneField(
         Camera, on_delete=models.PROTECT, related_name='environment_policy')
+    profile_code = models.CharField('Saqlanadigan mahsulot rejimi',max_length=24,default='',blank=True,
+        choices=[('', 'Qo‘lda sozlash'), ('grape','Uzum'), ('carrot','Sabzi'),
+                 ('potato','Kartoshka (iste’mol)'), ('potato_processing','Kartoshka (qayta ishlash)'),
+                 ('onion_dry','Piyoz (quruq)')])
     min_temperature = models.DecimalField('Eng past harorat, °C', max_digits=6, decimal_places=2, null=True, blank=True)
     max_temperature = models.DecimalField('Eng yuqori harorat, °C', max_digits=6, decimal_places=2, null=True, blank=True)
     min_humidity = models.DecimalField('Eng past namlik, %', max_digits=5, decimal_places=2, null=True, blank=True)
