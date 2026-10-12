@@ -44,6 +44,26 @@ class MonitoringTests(TestCase):
         data.update(kwargs)
         return data
 
+    def test_grape_carrot_potato_profiles_are_advisory(self):
+        from warehouse.crop_profiles import REFERENCES, classify_product, camera_crop_status
+        self.assertEqual([ref.code for ref in REFERENCES],
+                         ['grape','carrot','potato','potato_processing'])
+        self.assertEqual(classify_product('Qora uzum'), 'grape')
+        self.assertEqual(classify_product('Sabzi'), 'carrot')
+        self.assertEqual(classify_product('Kartoshka'), 'potato')
+        self.assertIsNone(classify_product('sabzavot'))
+        self.assertEqual(camera_crop_status(['uzum','kartoshka'])['state'],'mixed')
+        self.assertEqual(camera_crop_status(['sabzi','kartoshka'])['state'],'mixed')
+        self.assertEqual(camera_crop_status(['uzum','sabzi'])['state'],'mixed')
+        self.assertEqual(camera_crop_status(['uzum','noma’lum'])['state'],'unknown')
+        self.assertEqual(camera_crop_status(['sabzi'])['kind'],'carrot')
+        self.client.force_login(self.admin)
+        response=self.client.get(self.url)
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(response.context['crop_status']['state'],'empty')
+        self.assertEqual(len(response.context['crop_references']),4)
+        self.assertFalse(CameraEnvironmentPolicy.objects.filter(camera=self.c).exists())
+
     def test_login_and_cross_tenant_isolation(self):
         self.assertEqual(self.client.get(self.url).status_code,302)
         self.client.force_login(self.outsider)
