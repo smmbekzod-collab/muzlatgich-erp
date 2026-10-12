@@ -248,6 +248,33 @@ class IoTHubTests(TestCase):
         self.client.force_login(self.admin)
         self.assertEqual(self.client.get(reverse('iot_edge_config',args=[self.gb.pk])).status_code,404)
 
+    def test_single_protocol_gateway_rejects_incompatible_sensor(self):
+        from django.core.exceptions import ValidationError
+        wifi=IoTDevice(gateway=self.ga,camera=self.cameras[0],
+            transport='http_json',code='wifi-on-rs485',name='Wrong protocol')
+        with self.assertRaises(ValidationError):
+            wifi.full_clean()
+        self.ga.transport='mixed'
+        self.ga.full_clean()
+        self.ga.save(update_fields=['transport'])
+        wifi.full_clean()
+        wifi.save()
+        self.assertEqual(wifi.transport,'http_json')
+
+    def test_admin_on_a_can_only_view_other_organization_gateway(self):
+        Membership.objects.create(user=self.admin,organization=self.b,
+            role='director',all_cameras=True,all_facilities=True)
+        self.client.force_login(self.admin)
+        page=self.client.get(reverse('iot_hub'))
+        self.assertEqual(page.status_code,200)
+        self.assertContains(page,'Gateway 1')
+        self.assertContains(page,'Gateway B')
+        self.assertContains(page,'Faqat ko‘rish')
+        self.assertEqual(page.content.decode('utf8').count('Konfiguratsiyani yuklab olish'),1)
+        attempt=self.client.post(reverse('iot_hub'),data={
+            'action':'rotate','gateway_id':str(self.gb.pk)})
+        self.assertEqual(attempt.status_code,403)
+
     def test_25_cam_limit_is_per_tenant_not_global(self):
         self.assertEqual(len(self.cameras),25)
         self.assertEqual(self.o.cameras.count(),25)
