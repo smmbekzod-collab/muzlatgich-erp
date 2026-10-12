@@ -98,3 +98,19 @@ Offline yig‘ilgan o‘lchovlar **30 kungacha** server tomonidan qabul qilinadi
 `Universal IoT Hub v1` serverdagi gateway/reyestr, qabul API va nazoratga ulanishni taqdim etadi. Har xil Wi-Fi/Modbus/MQTT datchiklarni **avtomatik aniqlaydigan universal plug-and-play mexanizm EMAS**. Sanoat Modbus datchigi modeliga mos mahalliy polling adapteri va haqiqiy gateway qurilmasi kerak; moslamani xarid qilishdan avval ishlab chiqaruvchi register/protokol jadvali talab qilinadi.
 
 Ishlab chiqish tarmog‘ining yagona maqsadi — productionni asrash va dasturiy tayanchni sinash.
+
+## 7. Mahalliy yuborish dasturi (repo tarkibida)
+
+`scripts/iot_gateway_shipper.py` — Python standart kutubxonasi bilan yozilgan offline-safe yuboruvchi (real Modbus reader EMAS).
+
+Gateway kompyuterida konfiguratsiya:
+
+```bash
+export IOT_URL="https://YOUR-STAGING-DOMAIN/app/api/iot/v1/readings/"
+export IOT_BEARER="GATEWAY_UUID.GENERATED_SECRET"
+export IOT_QUEUE_DB="/var/lib/iot/queue.sqlite3"
+python scripts/iot_gateway_shipper.py enqueue /path/to/adapter-readings.json
+python scripts/iot_gateway_shipper.py flush
+```
+
+RS485 / Wi-Fi / MQTT uskunasi bilan alohida mos adapter 5 daqiqada har bir kamera qiymatini o‘qib `adapter-readings.json` faylini yaratishi kerak. Har bir yozuv `device_code, measured_at, temperature, humidity` maydonlariga ega bo‘lsin. Yuboruvchi tasdiqlanmaguncha SQLite navbatni saqlaydi. Bitta `flush` 50 ta o‘lchov yuboradi, davriy ishga tushiring. Hech qachon maxfiy `IOT_BEARER` ni kodga yoki ochiq repo fayliga yozmang.
