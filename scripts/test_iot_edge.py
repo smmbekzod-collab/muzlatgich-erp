@@ -167,6 +167,42 @@ class IoTEdgeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             edge.configuration(str(path))
 
+    def test_validate_rejects_unfinished_exported_sensor_mapping(self):
+        base={'serial':{'port':'/dev/ttyUSB0'},'devices':[{
+            'code':'cam01','transport':'modbus_rtu','address':1,
+            'temperature_function':'input','temperature_register':None,
+            'temperature_scale':None,'humidity_function':'input',
+            'humidity_register':None,'humidity_scale':None
+        }]}
+        with self.assertRaises(ValueError):
+            edge.validate_config(base,'all')
+        row=base['devices'][0]
+        row.update(temperature_register=0,temperature_scale='0.1',
+                   humidity_register=1,humidity_scale='0.1')
+        self.assertEqual(edge.validate_config(base,'all'),1)
+        base['devices'].append({'code':'cam02','transport':'http_json',
+            'url':'','temperature_path':'','humidity_path':''})
+        with self.assertRaises(ValueError):
+            edge.validate_config(base,'all')
+        base['devices'][1].update(url='http://192.168.1.80/status',
+                                   temperature_path='temperature',
+                                   humidity_path='humidity')
+        self.assertEqual(edge.validate_config(base,'all'),2)
+
+    def test_validate_mqtt_requires_tls_and_vendor_timestamp(self):
+        config={'mqtt':{'host':'192.168.1.20','tls':True},
+                'devices':[{'code':'cam03','transport':'mqtt',
+                    'topic':'sensors/cam03','temperature_path':'temp',
+                    'humidity_path':'humidity','timestamp_path':'measured_at'}]}
+        self.assertEqual(edge.validate_config(config,'mqtt'),1)
+        config['mqtt']['tls']=False
+        with self.assertRaises(ValueError):
+            edge.validate_config(config,'mqtt')
+        config['mqtt']['tls']=True
+        config['devices'][0]['timestamp_path']=''
+        with self.assertRaises(ValueError):
+            edge.validate_config(config,'mqtt')
+
     def test_http_failure_does_not_block_healthy_camera(self):
         client=FakeHTTP({'temperature':2.3,'humidity':83})
         cfg={'devices':[
