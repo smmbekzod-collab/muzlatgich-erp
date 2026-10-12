@@ -45,7 +45,7 @@ class Migration(migrations.Migration):
         ]),
         migrations.AddConstraint('iotgateway',models.UniqueConstraint(fields=['facility','name'],name='iot_gateway_name_site_unique')),
         migrations.AddConstraint('iotdevice',models.UniqueConstraint(fields=['gateway','code'],name='iot_device_code_gateway_unique')),
-        migrations.AddConstraint('iotdevice',models.UniqueConstraint(fields=['gateway','address'],condition=Q(address__isnull=False),name='iot_modbus_address_gateway_unique')),
+        migrations.AddConstraint('iotdevice',models.UniqueConstraint(fields=['gateway','address'],condition=Q(address__isnull=False),name='iot_gateway_address_unique')),
         migrations.AddConstraint('iotreceipt',models.UniqueConstraint(fields=['device','event_id'],name='iot_receipt_event_unique')),
         migrations.AlterField('cameraenvironmentalert','kind',models.CharField(
             verbose_name='Hodisa',max_length=20,choices=[
