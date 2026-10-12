@@ -261,6 +261,21 @@ class CameraEnvironmentPolicy(models.Model):
         return f'{self.camera} / iqlim nazorati'
 
 
+
+class CameraEnvironmentProfileChange(models.Model):
+    """Audit whenever an operator applies a crop preset or edits thresholds."""
+    camera = models.ForeignKey(Camera, on_delete=models.PROTECT, related_name='environment_profile_changes')
+    previous_profile = models.CharField(max_length=24, blank=True, default='')
+    current_profile = models.CharField(max_length=24, blank=True, default='')
+    previous_limits = models.JSONField(default=dict)
+    current_limits = models.JSONField(default=dict)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-changed_at', '-pk']
+
+
 class CameraEnvironmentReading(models.Model):
     """Immutable manually recorded measurements; IoT is NOT connected."""
     camera = models.ForeignKey(Camera, on_delete=models.PROTECT, related_name='environment_readings')
