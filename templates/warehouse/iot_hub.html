@@ -63,11 +63,14 @@
  <td>{% if not gw.is_active %}O‘chirilgan{% elif gw.online %}<strong>Online</strong>{% else %}Signal kutilmoqda / offline{% endif %}</td>
  <td>{{ gw.last_seen_at|date:'d.m.Y H:i'|default:'—' }}</td>
  {% if can_manage %}<td>
+ {% if gw.can_manage %}
  <a class="button secondary" href="{% url 'iot_edge_config' gw.pk %}" download>Konfiguratsiyani yuklab olish</a>
  <form method="post" style="display:flex;gap:6px;flex-wrap:wrap">{% csrf_token %}<input type="hidden" name="gateway_id" value="{{ gw.pk }}">
  {% if gw.is_active %}<button class="secondary" name="action" value="disable">O‘chirish</button>{% else %}<button class="secondary" name="action" value="enable">Yoqish</button>{% endif %}
  <button class="secondary" name="action" value="rotate" onclick="return confirm('Eski kalit ishlamay qoladi. Davom etasizmi?')">Kalitni yangilash</button>
- </form></td>{% endif %}
+ </form>
+ {% else %}<span class="muted">Faqat ko‘rish</span>{% endif %}
+ </td>{% endif %}
  </tr>{% empty %}<tr><td colspan="5">Gateway hali qo‘shilmagan.</td></tr>{% endfor %}
  </tbody></table></div>
 </section>
