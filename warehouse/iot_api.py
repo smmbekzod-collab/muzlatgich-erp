@@ -5,6 +5,7 @@ physical sensors and POSTs signed/authenticated HTTPS JSON to this endpoint.
 Duplicate stable event IDs are safely acknowledged without duplicate readings.
 """
 import json
+import logging
 from datetime import datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
@@ -18,6 +19,18 @@ from django.views.decorators.http import require_POST
 from .iot_models import IoTGateway, IoTDevice, IoTReceipt
 from .models import CameraEnvironmentReading
 from .monitor_alerts import reconcile_camera
+
+LOGGER = logging.getLogger(__name__)
+
+
+def _safe_reconcile(camera_id):
+    # The periodic scanner can retry alerts if an out-of-band reconciliation
+    # fails. Once telemetry is committed, avoid replying 500 to a gateway.
+    try:
+        reconcile_camera(camera_id)
+    except Exception:
+        LOGGER.exception('IoT alert reconciliation failed for camera id %s', camera_id)
+
 
 MAX_BODY_BYTES = 32768
 MAX_BATCH = 50
@@ -154,7 +167,7 @@ def iot_readings(request):
                 inserted += 1
             IoTGateway.objects.filter(pk=gateway.pk).update(last_seen_at=now)
             for camera_id in changed_cameras:
-                transaction.on_commit(lambda camera_id=camera_id: reconcile_camera(camera_id))
+                transaction.on_commit(lambda camera_id=camera_id: _safe_reconcile(camera_id))
     except (ValueError, ValidationError) as err:
         return _error(str(err), 409)
     response = JsonResponse({'ok':True,'inserted':inserted,'duplicates':duplicate})
