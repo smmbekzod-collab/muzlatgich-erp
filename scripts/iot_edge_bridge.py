@@ -52,6 +52,61 @@ def configuration(path):
     return cfg
 
 
+def validate_config(cfg, mode='all'):
+    """Fail closed before touching hardware if vendor mappings are placeholders.
+
+    mode='poll' validates only polled transports, mode='mqtt' only MQTT.
+    mode='all' validates every device without network, USB or credentials.
+    """
+    if mode not in ('all','poll','mqtt'):
+        raise ValueError('Noma’lum tekshiruv turi')
+    selected=[d for d in cfg['devices'] if mode=='all' or
+              (mode=='poll' and d['transport'] in ('http_json','modbus_rtu')) or
+              (mode=='mqtt' and d['transport']=='mqtt')]
+    if not selected:
+        raise ValueError('Tanlangan turdagi datchiklar yo‘q')
+    serial=cfg.get('serial',{})
+    mqtt=cfg.get('mqtt',{})
+    if any(d['transport']=='modbus_rtu' for d in selected):
+        if not isinstance(serial,dict) or not isinstance(serial.get('port'),str) or not serial['port'].strip():
+            raise ValueError('RS485 serial.port ni gateway portiga moslang')
+    if any(d['transport']=='mqtt' for d in selected):
+        if not isinstance(mqtt,dict) or mqtt.get('tls') is not True or not isinstance(mqtt.get('host'),str) or not mqtt['host'].strip():
+            raise ValueError('MQTT host va TLS sozlamalari talab qilinadi')
+    for d in selected:
+        code=d['code']
+        kind=d['transport']
+        if kind=='modbus_rtu':
+            addr=d.get('address')
+            if isinstance(addr,bool) or not isinstance(addr,int) or not 1<=addr<=247:
+                raise ValueError(f'{code}: Modbus ID 1–247 kerak')
+            for field in ('temperature','humidity'):
+                reg=d.get(field+'_register')
+                if isinstance(reg,bool) or not isinstance(reg,int) or not 0<=reg<=65535:
+                    raise ValueError(f'{code}: haqiqiy 0-based {field}_register kiriting')
+                if d.get(field+'_function') not in ('input','holding'):
+                    raise ValueError(f'{code}: {field}_function input yoki holding')
+                scale=d.get(field+'_scale')
+                try:
+                    factor=Decimal(str(scale))
+                except (InvalidOperation,TypeError,ValueError):
+                    raise ValueError(f'{code}: {field}_scale datchik pasportidan kiritilsin')
+                if not factor.is_finite() or factor<=0 or factor>1000:
+                    raise ValueError(f'{code}: {field}_scale yaroqsiz')
+        elif kind=='http_json':
+            check_http_url(d.get('url'))
+            for field in ('temperature_path','humidity_path'):
+                if not isinstance(d.get(field),str) or not d[field].strip():
+                    raise ValueError(f'{code}: {field} bo‘sh')
+        elif kind=='mqtt':
+            if not isinstance(d.get('timestamp_path'),str) or not d['timestamp_path'].strip():
+                raise ValueError(f'{code}: MQTT timestamp_path majburiy')
+            for field in ('temperature_path','humidity_path'):
+                if not isinstance(d.get(field),str) or not d[field].strip():
+                    raise ValueError(f'{code}: {field} bo‘sh')
+    return len(selected)
+
+
 def get_path(payload,path):
     if not isinstance(path,str) or not path or len(path)>120:
         raise ValueError('Sensor JSON field path belgilanmagan')
@@ -292,10 +347,13 @@ def listen_mqtt(config):
 def main():
     parser=argparse.ArgumentParser(description='On-site IoT adapter; never run on Railway')
     parser.add_argument('--config',required=True)
-    parser.add_argument('command',choices=['poll','mqtt'])
+    parser.add_argument('command',choices=['validate','poll','mqtt'])
     args=parser.parse_args()
     cfg=configuration(args.config)
-    if args.command=='poll':
+    n_validated=validate_config(cfg,'all' if args.command=='validate' else args.command)
+    if args.command=='validate':
+        print(f'Konfiguratsiya tekshirildi: {n_validated} datchik; faqat mahalliy sozlamalar, tarmoqqa ulanilmadi.')
+    elif args.command=='poll':
         n=poll(cfg)
         print(f'Navbatga kiritilgan o‘lchovlar: {n}')
         if n==0:
