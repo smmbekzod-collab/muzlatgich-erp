@@ -1,0 +1,75 @@
+{% extends 'warehouse/base.html' %}
+{% block title %}Universal IoT Hub · Muzlatgich ERP{% endblock %}
+{% block content %}
+<div class="overview-head"><div>
+ <div class="eyebrow">BULUTLI ERP / QURILMALAR</div>
+ <h1>Universal IoT Hub</h1>
+ <p class="muted">Har bir tashkilot o‘z omborida alohida gateway va kameraga biriktirilgan datchiklar bilan ishlaydi. Wi-Fi kamera ichida shart emas.</p>
+</div><a class="button secondary" href="{% url 'monitor_overview' %}">Harorat va namlik →</a></div>
+<div class="kpi-grid">
+ <div class="kpi-card"><div class="kpi-label">Ko‘rinadigan gatewaylar</div><div class="kpi-value">{{ gateway_count }}</div></div>
+ <div class="kpi-card"><div class="kpi-label">Ro‘yxatdagi datchiklar</div><div class="kpi-value">{{ device_count }}</div></div>
+</div>
+{% if new_token %}
+<section class="notice warning" role="status">
+ <h2>Yangi maxfiy gateway kaliti — faqat bir marta ko‘rsatiladi</h2>
+ <p>Mahalliy gateway dasturining Authorization: Bearer sarlavhasiga kiriting. Hech qachon Telegram, skrinshot yoki GitHub’ga joylamang.</p>
+ <textarea readonly rows="3" onclick="this.select()" aria-label="Yangi maxfiy kalit">{{ new_token }}</textarea>
+</section>
+{% endif %}
+{% if can_manage %}
+<div class="grid">
+<section class="card">
+ <h2>1. Omborga gateway biriktirish</h2>
+ <p class="muted">Har bir fizik hudud uchun mustaqil gateway. 25 ta kamera uchun RS485 tarmoqdan boshlang.</p>
+ <form method="post" autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="create_gateway">
+ {{ gateway_form.non_field_errors }}
+ {% for f in gateway_form.visible_fields %}
+ <div class="field"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{{ f.errors }}</div>
+ {% endfor %}
+ <button type="submit">Gateway yaratish va kalit olish</button>
+ </form>
+</section>
+<section class="card">
+ <h2>2. Kameraga datchik qo‘shish</h2>
+ <p class="muted">Har bir RS485 datchikning Modbus manzili 1–247 oralig‘ida va bir liniyada noyob bo‘lishi shart.</p>
+ <form method="post" autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="create_device">
+ {{ device_form.non_field_errors }}
+ {% for f in device_form.visible_fields %}
+ <div class="field"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{{ f.errors }}</div>
+ {% endfor %}
+ <button type="submit">Datchikni biriktirish</button>
+ </form>
+</section>
+</div>
+{% endif %}
+<section class="card">
+ <h2>Ombor gatewaylari</h2>
+ <div class="tablebox"><table><thead><tr><th>Tashkilot / hudud</th><th>Gateway / transport</th><th>Holat</th><th>Oxirgi xabar</th>{% if can_manage %}<th>Boshqarish</th>{% endif %}</tr></thead><tbody>
+ {% for gw in gateways %}
+ <tr><td>{{ gw.organization.name }}<div class="muted">{{ gw.facility.name }}</div></td>
+ <td>{{ gw.name }}<div class="muted">{{ gw.get_transport_display }}</div></td>
+ <td>{% if not gw.is_active %}O‘chirilgan{% elif gw.online %}<strong>Online</strong>{% else %}Signal kutilmoqda / offline{% endif %}</td>
+ <td>{{ gw.last_seen_at|date:'d.m.Y H:i'|default:'—' }}</td>
+ {% if can_manage %}<td>
+ <form method="post" style="display:flex;gap:6px;flex-wrap:wrap">{% csrf_token %}<input type="hidden" name="gateway_id" value="{{ gw.pk }}">
+ {% if gw.is_active %}<button class="secondary" name="action" value="disable">O‘chirish</button>{% else %}<button class="secondary" name="action" value="enable">Yoqish</button>{% endif %}
+ <button class="secondary" name="action" value="rotate" onclick="return confirm('Eski kalit ishlamay qoladi. Davom etasizmi?')">Kalitni yangilash</button>
+ </form></td>{% endif %}
+ </tr>{% empty %}<tr><td colspan="5">Gateway hali qo‘shilmagan.</td></tr>{% endfor %}
+ </tbody></table></div>
+</section>
+<section class="card">
+ <h2>Kaméralarga biriktirilgan datchiklar</h2>
+ <div class="tablebox"><table><thead><tr><th>Tashkilot / kamera</th><th>Datchik</th><th>Manzil</th><th>Holat</th><th>Oxirgi o‘lchov</th></tr></thead><tbody>
+ {% for d in devices %}
+ <tr><td>{{ d.camera.organization.name }}<div class="muted">{{ d.camera.facility.name }} / №{{ d.camera.number }}</div></td>
+ <td>{{ d.name }}<div class="muted">{{ d.code }} · {{ d.model_name|default:'Model ko‘rsatilmagan' }}</div></td>
+ <td>{{ d.address|default:'—' }}</td>
+ <td>{% if not d.is_active %}O‘chirilgan{% elif d.online %}<strong>Online</strong>{% else %}Offline / signal yo‘q{% endif %}</td>
+ <td>{{ d.last_seen_at|date:'d.m.Y H:i'|default:'—' }}</td>
+ </tr>{% empty %}<tr><td colspan="5">Datchik hali biriktirilmagan.</td></tr>{% endfor %}
+ </tbody></table></div>
+ <p class="help">Online holati oxirgi ma’lumot vaqtiga qarab baholanadi. IoT API: /app/api/iot/v1/readings/. Qurilma ichidan bevosita RS485/MQTT signalini bulut qabul qilmaydi — mahalliy adapter talab qilinadi.</p>
+</section>
+{% endblock %}
