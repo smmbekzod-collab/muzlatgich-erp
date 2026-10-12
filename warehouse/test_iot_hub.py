@@ -215,6 +215,39 @@ class IoTHubTests(TestCase):
             self.assertEqual([x.address for x in sensors],list(range(1,len(segment)+1)))
         self.assertEqual(IoTDevice.objects.filter(gateway__name__startswith='BULK').count(),25)
 
+    def test_gateway_config_export_is_secret_free_and_tenant_scoped(self):
+        url=reverse('iot_edge_config',args=[self.ga.pk])
+        self.assertEqual(self.client.get(url).status_code,302)
+        self.client.force_login(self.admin_b)
+        self.assertEqual(self.client.get(url).status_code,404)
+        self.client.force_login(self.admin)
+        response=self.client.get(url)
+        self.assertEqual(response.status_code,200,response.content[:400])
+        self.assertEqual(response['Cache-Control'],'no-store, private')
+        self.assertIn('attachment;',response['Content-Disposition'])
+        data=response.json()
+        self.assertEqual(data['_gateway_id'],str(self.ga.pk))
+        self.assertEqual(len(data['devices']),25)
+        self.assertEqual([d['address'] for d in data['devices']],list(range(1,26)))
+        self.assertTrue(all(d['temperature_register'] is None for d in data['devices']))
+        self.assertTrue(all(d['humidity_register'] is None for d in data['devices']))
+        self.assertTrue(all(d['transport']=='modbus_rtu' for d in data['devices']))
+        self.assertNotIn(self.secret,response.content.decode('utf8'))
+        self.assertNotIn(self.ga.secret_hash,response.content.decode('utf8'))
+        self.assertFalse(data['_contains_secrets'])
+
+    def test_config_export_rejects_other_tenant_and_readonly_director(self):
+        from django.contrib.auth import get_user_model
+        from core.models import Membership
+        U=get_user_model()
+        director=U.objects.create_user('iot_director',password='Unrelatedpass909090!',is_staff=True)
+        Membership.objects.create(user=director,organization=self.o,role='director',
+            all_cameras=True,all_facilities=True)
+        self.client.force_login(director)
+        self.assertEqual(self.client.get(reverse('iot_edge_config',args=[self.ga.pk])).status_code,404)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse('iot_edge_config',args=[self.gb.pk])).status_code,404)
+
     def test_25_cam_limit_is_per_tenant_not_global(self):
         self.assertEqual(len(self.cameras),25)
         self.assertEqual(self.o.cameras.count(),25)
