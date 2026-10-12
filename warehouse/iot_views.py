@@ -179,7 +179,7 @@ def iot_hub(request):
                 gw.is_active=action=='enable'
                 gw.save(update_fields=['is_active'])
                 messages.success(request,'Gateway holati yangilandi.')
-        elif action not in ('create_gateway','create_device'):
+        elif action not in ('create_gateway','create_device','bulk_modbus'):
             raise PermissionDenied('Noma’lum amal.')
     response=render(request,'warehouse/iot_hub.html',{
         'today':timezone.localdate(),'gateways':gateways,
