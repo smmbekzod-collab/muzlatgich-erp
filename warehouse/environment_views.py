@@ -19,6 +19,7 @@ from .environment_forms import CameraEnvironmentPolicyForm, CameraEnvironmentRea
 from .environment_logic import assess_camera
 from .models import CameraEnvironmentPolicy, CameraEnvironmentReading, Lot, CameraEnvironmentAlert
 from .monitor_alerts import reconcile_camera
+from .crop_profiles import REFERENCES, camera_crop_status
 
 
 def _has_permission(user,camera,ability):
@@ -124,6 +125,13 @@ def monitor_camera(request,camera_id):
     recent=history[0] if history else None
     lots=list(Lot.objects.filter(camera=camera,closed_on__isnull=True)
              .select_related('customer').order_by('received_on','pk')[:50])
+    # The lot list is visually capped at 50, but crop guidance must inspect
+    # all distinct current product labels (up to 129; excess flags unknown).
+    product_names=list(Lot.objects.filter(camera=camera,closed_on__isnull=True)
+                       .values_list('product',flat=True).distinct()[:129])
+    crop_status=camera_crop_status(
+        product_names if len(product_names)<=128
+        else product_names[:128]+['NOMA’LUM MAHSULOT'])
     oldest=lots[0].received_on if lots else None
     outcome=assess_camera(camera,existing,recent,oldest)
     for lot in lots:
@@ -135,6 +143,7 @@ def monitor_camera(request,camera_id):
         'policy':existing,'policy_form':policy_form,'reading_form':reading_form,
         'can_configure':can_configure,'can_record':can_record,
         'summary':outcome,'history':history,'lots':lots,
+        'crop_references':REFERENCES,'crop_status':crop_status,
     })
 
 
