@@ -5,7 +5,7 @@ from django.contrib.admin.models import LogEntry
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from .models import Organization,Facility,Camera,Membership
-from .forms import MembershipForm
+from .forms import MembershipForm, CameraForm
 from . import access
 
 class AgroSite(admin.AdminSite):
@@ -62,6 +62,7 @@ class FacilityAdmin(ScopedAdmin):
 
 @admin.register(Camera,site=site)
 class CameraAdmin(ScopedAdmin):
+    form = CameraForm
     autocomplete_fields = ['organization','facility']
     list_display = ['organization','facility','number','name','capacity_kg','is_active']
     list_filter = ['organization','facility','is_active']
