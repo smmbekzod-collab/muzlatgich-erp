@@ -3,7 +3,7 @@ import json
 from datetime import timedelta
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth.hashers import make_password
@@ -12,6 +12,7 @@ from .iot_models import IoTGateway, IoTDevice, IoTReceipt
 from .models import CameraEnvironmentReading
 
 
+@override_settings(STORAGES={'default':{'BACKEND':'django.core.files.storage.FileSystemStorage'},'staticfiles':{'BACKEND':'django.contrib.staticfiles.storage.StaticFilesStorage'}})
 class IoTHubTests(TestCase):
     def setUp(self):
         U=get_user_model()
