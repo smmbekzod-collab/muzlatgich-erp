@@ -1,0 +1,50 @@
+{
+  "note": "NAMUNAVIY! Datchik JSON field names/Modbus 0-based registers must be confirmed in YOUR vendor manual. Secrets go in OS environment only.",
+  "serial": {
+    "port": "/dev/ttyUSB0",
+    "baudrate": 9600,
+    "parity": "N",
+    "stopbits": 1,
+    "bytesize": 8,
+    "timeout": 2
+  },
+  "mqtt": {
+    "host": "192.168.1.20",
+    "port": 8883,
+    "tls": true,
+    "ca_file": "/etc/iot/mqtt-ca.pem",
+    "username_env": "IOT_MQTT_USER",
+    "password_env": "IOT_MQTT_PASSWORD"
+  },
+  "devices": [
+    {
+      "code": "cam01",
+      "transport": "modbus_rtu",
+      "address": 1,
+      "temperature_function": "input",
+      "temperature_register": 0,
+      "temperature_signed": true,
+      "temperature_scale": "0.1",
+      "humidity_function": "input",
+      "humidity_register": 1,
+      "humidity_scale": "0.1"
+    },
+    {
+      "code": "cam02",
+      "transport": "http_json",
+      "url": "http://192.168.1.80/api/status",
+      "temperature_path": "data.temp_c",
+      "humidity_path": "data.relative_humidity",
+      "timestamp_path": "data.timestamp",
+      "bearer_token_env": "IOT_SENSOR_CAM02_TOKEN"
+    },
+    {
+      "code": "cam03",
+      "transport": "mqtt",
+      "topic": "site-a/cam03/telemetry",
+      "temperature_path": "temperature",
+      "humidity_path": "humidity",
+      "timestamp_path": "measured_at"
+    }
+  ]
+}
