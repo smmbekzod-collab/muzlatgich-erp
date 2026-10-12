@@ -175,6 +175,29 @@ class IoTHubTests(TestCase):
         self.sensors[0].refresh_from_db()
         self.assertEqual(self.sensors[0].last_seen_at,stored)
 
+    def test_mixed_gateway_supports_wifi_mqtt_and_modbus_devices(self):
+        self.ga.transport='mixed'
+        self.ga.full_clean()
+        self.ga.save(update_fields=['transport'])
+        from django.core.exceptions import ValidationError
+        wifi=IoTDevice(gateway=self.ga,camera=self.cameras[0],
+            transport='http_json',code='wifi01',name='Wi-Fi sensor')
+        wifi.full_clean()
+        wifi.save()
+        mqtt=IoTDevice(gateway=self.ga,camera=self.cameras[1],
+            transport='mqtt',code='mqtt02',name='MQTT sensor')
+        mqtt.full_clean()
+        mqtt.save()
+        self.assertEqual(IoTDevice.objects.filter(gateway=self.ga).count(),27)
+        invalid=IoTDevice(gateway=self.ga,camera=self.cameras[2],
+            transport='modbus_rtu',code='bad',name='Missing register')
+        with self.assertRaises(ValidationError):
+            invalid.full_clean()
+        invalid_wifi=IoTDevice(gateway=self.ga,camera=self.cameras[2],
+            transport='http_json',code='bad-wifi',address=51,name='Invalid HTTP address')
+        with self.assertRaises(ValidationError):
+            invalid_wifi.full_clean()
+
     def test_25_cam_limit_is_per_tenant_not_global(self):
         self.assertEqual(len(self.cameras),25)
         self.assertEqual(self.o.cameras.count(),25)
