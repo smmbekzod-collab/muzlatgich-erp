@@ -19,3 +19,8 @@ urlpatterns.append(path('monitor/camera/<int:camera_id>/',environment_views.moni
 urlpatterns.append(path('monitor/camera/<int:camera_id>/export.csv',environment_views.monitor_csv,name='monitor_csv'))
 urlpatterns.append(path("rentals/",views.rentals,name="rentals"))
 urlpatterns.append(path("rentals/invoice/<int:pk>/",views.rental_invoice,name="rental_invoice"))
+
+# On-site gateways post authenticated measurements; no cloud Modbus ports.
+from . import iot_api, iot_views
+urlpatterns.append(path('iot/',iot_views.iot_hub,name='iot_hub'))
+urlpatterns.append(path('api/iot/v1/readings/',iot_api.iot_readings,name='iot_readings'))
