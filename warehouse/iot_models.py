@@ -92,6 +92,17 @@ class IoTDevice(models.Model):
                 organization_id=self.gateway.organization_id,
                 facility_id=self.gateway.facility_id).exists():
                 raise ValidationError({'camera':'Datchik va gateway bir tashkilot hamda hududga tegishli bo‘lishi shart.'})
+        allowed_transport = {
+            'rs485':'modbus_rtu',
+            'wifi':'http_json',
+            'mqtt':'mqtt',
+            'lorawan':'lorawan',
+            'other':'other',
+        }
+        if self.gateway_id and self.gateway.transport != 'mixed':
+            expected = allowed_transport.get(self.gateway.transport)
+            if expected and self.transport != expected:
+                raise ValidationError({'transport':'Gateway ulanish turi ushbu datchik protokoliga mos emas. Aralash turlar uchun gatewayda Mixed turini tanlang.'})
         if self.address is not None and not 1 <= self.address <= 247:
             raise ValidationError({'address':'Modbus manzil 1–247 bo‘lishi kerak.'})
         if self.transport == 'modbus_rtu' and self.address is None:
