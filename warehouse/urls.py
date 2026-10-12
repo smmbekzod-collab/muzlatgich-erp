@@ -21,6 +21,8 @@ urlpatterns.append(path("rentals/",views.rentals,name="rentals"))
 urlpatterns.append(path("rentals/invoice/<int:pk>/",views.rental_invoice,name="rental_invoice"))
 
 # On-site gateways post authenticated measurements; no cloud Modbus ports.
-from . import iot_api, iot_views
+from . import iot_api, iot_views, iot_config
 urlpatterns.append(path('iot/',iot_views.iot_hub,name='iot_hub'))
 urlpatterns.append(path('api/iot/v1/readings/',iot_api.iot_readings,name='iot_readings'))
+
+urlpatterns.append(path('iot/gateway/<uuid:gateway_id>/edge-config.json',iot_config.export_edge_config,name='iot_edge_config'))
