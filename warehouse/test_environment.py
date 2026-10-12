@@ -68,6 +68,13 @@ class MonitoringTests(TestCase):
         self.assertEqual(len(response.context['crop_references']),5)
         self.assertFalse(CameraEnvironmentPolicy.objects.filter(camera=self.c).exists())
 
+    def test_blank_product_does_not_silently_choose_first_preset(self):
+        self.client.force_login(self.admin)
+        response=self.client.post(self.url,{
+            'action':'preset','preset-profile_code':''})
+        self.assertEqual(response.status_code,200)
+        self.assertFalse(CameraEnvironmentPolicy.objects.filter(camera=self.c).exists())
+
     def test_selecting_crop_changes_camera_monitoring_limits_without_manual_retyping(self):
         from warehouse.models import CameraEnvironmentProfileChange
         self.client.force_login(self.admin)
