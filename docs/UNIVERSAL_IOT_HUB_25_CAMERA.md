@@ -70,7 +70,9 @@ Misol (FAKAT soxta test ma'lumotlar):
 
 Bir so‘rovda 1–50 datchik, 32KB dan oshmasin. Har bir datchik uchun `event_id` doimiy va noyob; internet qaytsa xuddi shu ID bilan qayta yuborish **yangi qayd yaratmaydi**. Server boshqa qiymat bilan ayni ID kelganda 409 rad etadi. 2 xonali aniqlik; −80..+80°C va 0..100% RH umumiy texnik chek, mahsulotning me’yorini tashkilot o‘zi belgilaydi. O‘lchovga vaqt zonasi shart, yuborish vaqti soatga moslashtirilsin.
 
-`CameraEnvironmentReading(source='sensor', recorded_by=None)` ga avtomatik yoziladi; `IoTReceipt` auditda qaysi gateway/datchikdan kelganini saqlaydi. Amaldagi `reconcile_camera()` me’yorlar bo‘yicha hodisa yaratadi; mavjud Railway Telegram cron jarayoni boshqaradi. **Telegram bir lahzada emas**: davriy cron navbatiga ko‘ra kechikishi mumkin. Qurilma oflayn holati dastlab portalda oxirgi signaldan hisoblanadi; maxsus oflayn Telegram eslatmasi keyingi bosqich.
+`CameraEnvironmentReading(source='sensor', recorded_by=None)` ga avtomatik yoziladi; `IoTReceipt` auditda qaysi gateway/datchikdan kelganini saqlaydi. Amaldagi `reconcile_camera()` me’yorlar bo‘yicha hodisa yaratadi; mavjud Railway Telegram cron jarayoni boshqaradi. **Telegram bir lahzada emas**: davriy cron navbatiga ko‘ra kechikishi mumkin. Qurilma offline holati portalda oxirgi signaldan hisoblanadi. Avval kamida bir marta signal bergan datchik keyinchalik belgilangan muddatdan oshib jim qolsa, kamera bo‘yicha `sensor_offline` hodisasi hosil qilinib mavjud Telegram cron navbatiga tushadi. Hech qachon ulanmagan yangi qurilma uchun Telegram xavf xabari yaratilmaydi.
+
+Offline yig‘ilgan o‘lchovlar **30 kungacha** server tomonidan qabul qilinadi (server va qurilmaning soati to‘g‘ri bo‘lsin). Lokal navbat 30 kundan uzoq uzilishlarda avtomatik o‘chirilmaydi; bunday eskirgan paketlar qo‘lda eksport/tekshirishni talab qiladi.
 
 ## 4. Foydalanuvchi bosqichlari
 1. Tashkilotning `camera_limit` 25 bo‘lsin, `Facility` va 1–25 `Camera` reyestrga kiritilsin.
