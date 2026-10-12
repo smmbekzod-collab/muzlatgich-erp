@@ -53,6 +53,8 @@ class MonitoringTests(TestCase):
         self.assertEqual(classify_product('Kartoshka'), 'potato')
         self.assertEqual(classify_product('Quruq piyoz'), 'onion_dry')
         self.assertIsNone(classify_product("ko'k piyoz"))
+        self.assertIsNone(classify_product('ko‘k piyoz'))
+        self.assertIsNone(classify_product('yashil piyoz'))
         self.assertIsNone(classify_product('sabzavot'))
         self.assertEqual(camera_crop_status(['uzum','kartoshka'])['state'],'mixed')
         self.assertEqual(camera_crop_status(['sabzi','kartoshka'])['state'],'mixed')
