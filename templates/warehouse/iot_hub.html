@@ -42,6 +42,17 @@
  </form>
 </section>
 </div>
+<details class="card">
+ <summary><strong>3. RS485: 25 tagacha kameraga datchiklarni birdaniga biriktirish</strong></summary>
+ <p class="muted">13+12 ta kamera uchun ikki gateway tanlab, amaliyotni har bir gatewayga alohida bajaring. Kodlar kamera raqamidan yaratiladi (masalan cam001), Modbus manzillar boshlangan qiymatdan ketma-ket belgilanadi.</p>
+ <form method="post" autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="bulk_modbus">
+ {{ bulk_form.non_field_errors }}
+ {% for f in bulk_form.visible_fields %}
+ <div class="field"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{{ f.errors }}</div>
+ {% endfor %}
+ <button type="submit" onclick="return confirm('Tanlangan kameralar uchun RS485 qurilmalari yaratiladi. Davom etasizmi?')">Tanlangan kameralarga biriktirish</button>
+ </form>
+</details>
 {% endif %}
 <section class="card">
  <h2>Ombor gatewaylari</h2>
