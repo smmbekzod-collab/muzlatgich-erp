@@ -134,6 +134,25 @@ class IoTHubTests(TestCase):
         self.ga.save()
         self.assertEqual(self.send([self.item()]).status_code,401)
 
+
+    def test_sensor_offline_creates_and_recovers_one_incident(self):
+        from warehouse.models import CameraEnvironmentAlert
+        from warehouse.monitor_alerts import reconcile_camera
+        sensor=self.sensors[0]
+        sensor.last_seen_at=timezone.now()-timedelta(minutes=25)
+        sensor.save(update_fields=['last_seen_at'])
+        opened=reconcile_camera(self.cameras[0].pk)
+        self.assertEqual([a.kind for a in opened],['sensor_offline'])
+        self.assertEqual(reconcile_camera(self.cameras[0].pk),[])
+        self.assertEqual(CameraEnvironmentAlert.objects.filter(
+            camera=self.cameras[0],kind='sensor_offline').count(),1)
+        sensor.last_seen_at=timezone.now()
+        sensor.save(update_fields=['last_seen_at'])
+        reconcile_camera(self.cameras[0].pk)
+        self.assertFalse(CameraEnvironmentAlert.objects.filter(
+            camera=self.cameras[0],kind='sensor_offline',
+            resolved_at__isnull=True).exists())
+
     def test_25_cam_limit_is_per_tenant_not_global(self):
         self.assertEqual(len(self.cameras),25)
         self.assertEqual(self.o.cameras.count(),25)
