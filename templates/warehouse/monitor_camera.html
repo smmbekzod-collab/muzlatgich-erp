@@ -41,6 +41,12 @@
   </form>
   {% endif %}
 </section>
+{% if crop_status.state == 'mixed' or crop_status.state == 'unknown' or crop_status.state == 'mismatch' %}
+<section class="env-alert-panel" role="status">
+ <h2>Mahsulot va kamera rejimini tekshiring</h2>
+ <p>{{ crop_status.message }}</p>
+</section>
+{% endif %}
 <div class="env-detail-forms">
   <section class="card env-entry-card">
     <h2>Yangi o‘lchov</h2><p class="muted">Omborchi harorat va namlikni o‘lchab jurnalga kiritadi.</p>
@@ -75,6 +81,18 @@
     {% endif %}
   </section>
 </div>
+{% if profile_changes %}
+<details class="card">
+ <summary><strong>Mahsulot rejimi o‘zgarishlari tarixi</strong></summary>
+ <div class="tablebox"><table><thead><tr><th>Sana</th><th>Oldingi</th><th>Yangi</th><th>Mas’ul</th></tr></thead>
+ <tbody>{% for change in profile_changes %}
+ <tr><td>{{ change.changed_at|date:'d.m.Y H:i' }}</td>
+ <td>{{ change.previous_profile|default:'Qo‘lda' }}</td>
+ <td>{{ change.current_profile|default:'Qo‘lda' }}</td>
+ <td>{{ change.changed_by.username }}</td></tr>
+ {% endfor %}</tbody></table></div>
+</details>
+{% endif %}
 <section class="env-lots-section" aria-labelledby="env-lot-title">
   <div class="section-heading"><div><h2 id="env-lot-title">Kameradagi mahsulotlar</h2><p class="muted">Eng eski 50 ta ochiq partiya. Kunlar yuk qabul qilingan sanadan boshlab hisoblanadi.</p></div></div>
   <div class="tablebox responsive-table"><table><thead><tr><th>Partiya</th><th>Mahsulot / mijoz</th><th>Kirim</th><th class="num">Muddati</th><th>Holat</th></tr></thead>
