@@ -45,7 +45,7 @@ class GatewayForm(forms.ModelForm):
 class DeviceForm(forms.ModelForm):
     class Meta:
         model=IoTDevice
-        fields=['gateway','camera','code','name','model_name','address']
+        fields=['gateway','camera','transport','code','name','model_name','address']
     def __init__(self,*args,gateways=None,cameras=None,**kwargs):
         super().__init__(*args,**kwargs)
         self.fields['gateway'].queryset=gateways
