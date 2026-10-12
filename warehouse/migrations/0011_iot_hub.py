@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
             ('name',models.CharField(max_length=120)),
             ('transport',models.CharField(max_length=12,default='rs485',choices=[
                 ('rs485','RS485 / Modbus orqali mahalliy gateway'),('wifi','Wi-Fi / HTTPS'),
-                ('mqtt','MQTT orqali mahalliy adapter'),('lorawan','LoRaWAN orqali adapter'),('other','Boshqa adapter')])),
+                ('mqtt','MQTT orqali mahalliy adapter'),('lorawan','LoRaWAN orqali adapter'),('mixed','Bir nechta transportli gateway'),('other','Boshqa adapter')])),
             ('secret_hash',models.CharField(max_length=160,editable=False)),
             ('is_active',models.BooleanField(default=True)),
             ('offline_minutes',models.PositiveSmallIntegerField(default=15)),
@@ -25,6 +25,10 @@ class Migration(migrations.Migration):
             ('created_by',models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=django.db.models.deletion.PROTECT)),
         ],options={'ordering':['organization_id','facility_id','name']}),
         migrations.CreateModel('IoTDevice',fields=[
+            ('transport',models.CharField(max_length=16,default='modbus_rtu',choices=[
+                ('modbus_rtu','RS485 / Modbus RTU'),('http_json','Wi-Fi / HTTP JSON'),
+                ('mqtt','MQTT broker'),('lorawan','LoRaWAN (adapter kerak)'),
+                ('other','Boshqa (adapter kerak)')])),
             ('id',models.BigAutoField(primary_key=True,serialize=False,auto_created=True,verbose_name='ID')),
             ('code',models.SlugField(max_length=64)),
             ('name',models.CharField(max_length=120)),
