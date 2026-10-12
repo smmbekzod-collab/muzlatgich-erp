@@ -154,6 +154,27 @@ class IoTHubTests(TestCase):
             camera=self.cameras[0],kind='sensor_offline',
             resolved_at__isnull=True).exists())
 
+    def test_offline_backlog_does_not_falsely_mark_sensor_online(self):
+        old=(timezone.now()-timedelta(days=2)).isoformat()
+        with self.captureOnCommitCallbacks(execute=True):
+            result=self.send([self.item(measured_at=old,event_id='old-reading')])
+        self.assertEqual(result.status_code,200,result.content)
+        self.sensors[0].refresh_from_db()
+        self.ga.refresh_from_db()
+        self.assertFalse(self.sensors[0].online())
+        self.assertTrue(self.ga.online())
+        with self.captureOnCommitCallbacks(execute=True):
+            result=self.send([self.item(event_id='new-reading')])
+        self.assertEqual(result.status_code,200,result.content)
+        self.sensors[0].refresh_from_db()
+        self.assertTrue(self.sensors[0].online())
+        stored=self.sensors[0].last_seen_at
+        with self.captureOnCommitCallbacks(execute=True):
+            result=self.send([self.item(measured_at=old,event_id='another-old-reading')])
+        self.assertEqual(result.status_code,200,result.content)
+        self.sensors[0].refresh_from_db()
+        self.assertEqual(self.sensors[0].last_seen_at,stored)
+
     def test_25_cam_limit_is_per_tenant_not_global(self):
         self.assertEqual(len(self.cameras),25)
         self.assertEqual(self.o.cameras.count(),25)
