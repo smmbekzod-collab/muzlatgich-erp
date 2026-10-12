@@ -17,7 +17,7 @@ Bu hujjat `feature/universal-iot-hub-25-camera-20261012` sinov tarmog‘idagi da
 
 Ikki mustaqil RS485 segment (13+12) va ikki mahalliy edge gateway tavsiya qilinadi. Wi-Fi/MQTT sensorlar shu joydagi edge gatewayga LAN orqali ulanishi mumkin, yoki har bir gatewayda alohida adapter ishlaydi. Boshqa tashkilotning omborida **boshqa gateway kalitlari va boshqa mahalliy config** bo‘ladi.
 
-Har bir `code` ERPda datchikka biriktirilgan `IoTDevice.code` bilan aynan mos bo‘lishi kerak. MQTT topiclar butun mahalliy configda yagona bo‘lsin. Modbus slave address 1–247 har bir RS485 segment uchun alohida.
+Har bir `code` ERPda datchikka biriktirilgan `IoTDevice.code` bilan aynan mos bo‘lishi kerak. ERPda **har bir IoT datchik uchun transport turi alohida tanlanadi**: Wi-Fi / HTTP JSON, MQTT yoki RS485 / Modbus. Bir mini-PC aralash datchiklarni qabul qilsa, ERPda gateway transportini **Bir nechta transportli gateway (mixed)** qilib belgilang. RS485 datchikda `address` 1–247 shart; boshqa turdagi datchiklarda Modbus manzil kiritilmaydi. MQTT topiclar butun mahalliy configda yagona bo‘lsin. Modbus slave address 1–247 har bir RS485 segment uchun alohida.
 
 ## Lokal mini-PC / Raspberry Pi sozlash
 
