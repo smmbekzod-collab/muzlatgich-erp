@@ -162,7 +162,7 @@ def monitor_csv(request,camera_id):
         writer.writerow([
             safe(camera.organization.name),safe(camera.facility.name if camera.facility_id else ''),
             camera.number,timezone.localtime(x.measured_at).strftime('%Y-%m-%d %H:%M:%S'),
-            x.temperature,x.humidity,x.get_source_display(),safe(x.recorded_by.username),
+            x.temperature,x.humidity,x.get_source_display(),safe(x.recorded_by.username if x.recorded_by_id else 'IoT datchik'),
             safe(x.note)])
     return response
 
