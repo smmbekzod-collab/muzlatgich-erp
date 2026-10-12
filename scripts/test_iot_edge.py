@@ -128,6 +128,36 @@ class IoTEdgeTests(unittest.TestCase):
         self.assertTrue(all(x['humidity']=='85.00' for x in vals))
         self.assertEqual(len(set(fake.addresses)),25)
 
+
+    def test_th30rs_verified_manufacturer_register_profile(self):
+        # TH-30-RS official manual: holding reg0 humidity /10, reg1
+        # signed temperature /10, 9600 8N1 and per-slave unique ID.
+        path=Path(__file__).parent/'profiles'/'th30rs.modbus.example.json'
+        config=edge.configuration(str(path))
+        self.assertEqual(edge.validate_config(config),1)
+        dev=config['devices'][0]
+        self.assertEqual(dev['temperature_register'],1)
+        self.assertEqual(dev['humidity_register'],0)
+        self.assertTrue(dev['temperature_signed'])
+        self.assertEqual(dev['temperature_function'],'holding')
+        self.assertEqual(dev['humidity_function'],'holding')
+        class TH30Sim:
+            def __init__(self):
+                self.queries=[]
+            def connect(self):
+                return True
+            def read_holding_registers(self,*,address,count,device_id):
+                self.queries.append((address,device_id))
+                return FakeModbusResult(0xFFFB if address==1 else 930)
+            def close(self):
+                pass
+        sim=TH30Sim()
+        self.assertEqual(edge.poll(config,serial_factory=lambda _:sim),1)
+        self.assertEqual(sim.queries,[(1,1),(0,1)])
+        entry=json.loads(self.queued()[0][0])
+        self.assertEqual(entry['temperature'],'-0.50')
+        self.assertEqual(entry['humidity'],'93.00')
+
     def test_mqtt_topic_timestamp_and_retained(self):
         cfg={'devices':[{'code':'cam03','transport':'mqtt','topic':'site-a/cam03',
             'timestamp_path':'measured_at'}]}
