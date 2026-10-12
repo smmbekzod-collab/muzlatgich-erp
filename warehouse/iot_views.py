@@ -181,12 +181,18 @@ def iot_hub(request):
                 messages.success(request,'Gateway holati yangilandi.')
         elif action not in ('create_gateway','create_device','bulk_modbus'):
             raise PermissionDenied('Noma’lum amal.')
+    # One user may administer organization A but only view B. Hide B's
+    # export/rotation controls rather than displaying buttons that return 403.
+    managed_keys=set(managed_gateways.values_list('pk',flat=True))
+    gateway_rows=list(gateways)
+    for item in gateway_rows:
+        item.can_manage=item.pk in managed_keys
     response=render(request,'warehouse/iot_hub.html',{
-        'today':timezone.localdate(),'gateways':gateways,
+        'today':timezone.localdate(),'gateways':gateway_rows,
         'devices':devices,'gateway_form':gw_form,'device_form':device_form,
         'bulk_form':bulk_form,
         'new_token':token,'can_manage':orgs.exists(),
-        'gateway_count':gateways.count(),'device_count':devices.count(),
+        'gateway_count':len(gateway_rows),'device_count':devices.count(),
     })
     response['Cache-Control']='no-store, private'
     response['Referrer-Policy']='no-referrer'
