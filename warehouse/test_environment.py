@@ -47,10 +47,12 @@ class MonitoringTests(TestCase):
     def test_grape_carrot_potato_profiles_are_advisory(self):
         from warehouse.crop_profiles import REFERENCES, classify_product, camera_crop_status
         self.assertEqual([ref.code for ref in REFERENCES],
-                         ['grape','carrot','potato','potato_processing'])
+                         ['grape','carrot','potato','potato_processing','onion_dry'])
         self.assertEqual(classify_product('Qora uzum'), 'grape')
         self.assertEqual(classify_product('Sabzi'), 'carrot')
         self.assertEqual(classify_product('Kartoshka'), 'potato')
+        self.assertEqual(classify_product('Quruq piyoz'), 'onion_dry')
+        self.assertIsNone(classify_product("ko'k piyoz"))
         self.assertIsNone(classify_product('sabzavot'))
         self.assertEqual(camera_crop_status(['uzum','kartoshka'])['state'],'mixed')
         self.assertEqual(camera_crop_status(['sabzi','kartoshka'])['state'],'mixed')
@@ -61,8 +63,100 @@ class MonitoringTests(TestCase):
         response=self.client.get(self.url)
         self.assertEqual(response.status_code,200)
         self.assertEqual(response.context['crop_status']['state'],'empty')
-        self.assertEqual(len(response.context['crop_references']),4)
+        self.assertEqual(len(response.context['crop_references']),5)
         self.assertFalse(CameraEnvironmentPolicy.objects.filter(camera=self.c).exists())
+
+    def test_selecting_crop_changes_camera_monitoring_limits_without_manual_retyping(self):
+        from warehouse.models import CameraEnvironmentProfileChange
+        self.client.force_login(self.admin)
+        for code,expected in [
+            ('grape',('-1.00','0.00','90.00','95.00')),
+            ('carrot',('0.00','1.00','98.00','100.00')),
+            ('potato',('4.00','8.00','90.00','96.00')),
+            ('potato_processing',('7.00','10.00','90.00','96.00')),
+            ('onion_dry',('0.00','1.00','65.00','70.00')),
+        ]:
+            response=self.client.post(self.url,{
+                'action':'preset','preset-profile_code':code})
+            self.assertEqual(response.status_code,302,response.content[:300])
+            p=CameraEnvironmentPolicy.objects.get(camera=self.c)
+            self.assertEqual(p.profile_code,code)
+            actual=tuple(str(getattr(p,key)) for key in (
+                'min_temperature','max_temperature','min_humidity','max_humidity'))
+            self.assertEqual(actual,expected)
+            self.assertEqual(p.check_interval_hours,12)
+        self.assertEqual(CameraEnvironmentProfileChange.objects.filter(camera=self.c).count(),5)
+        self.assertEqual(CameraEnvironmentProfileChange.objects.filter(
+            camera=self.c).first().previous_profile,'potato_processing')
+        self.assertEqual(CameraEnvironmentProfileChange.objects.filter(
+            camera=self.c).first().current_profile,'onion_dry')
+        self.assertContains(self.client.get(self.url),'Piyoz')
+
+    def test_manual_adjustment_exits_automatic_profile_without_loss_of_other_options(self):
+        from warehouse.models import CameraEnvironmentProfileChange
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.post(self.url,{
+            'action':'preset','preset-profile_code':'onion_dry'}).status_code,302)
+        before=CameraEnvironmentPolicy.objects.get(camera=self.c)
+        before.max_storage_days=37
+        before.check_interval_hours=4
+        before.save()
+        result=self.client.post(self.url,self.limits(**{
+            'policy-min_temperature':'0','policy-max_temperature':'2',
+            'policy-min_humidity':'65','policy-max_humidity':'75',
+            'policy-check_interval_hours':'4','policy-max_storage_days':'37'}))
+        self.assertEqual(result.status_code,302,result.content[:300])
+        p=CameraEnvironmentPolicy.objects.get(camera=self.c)
+        self.assertEqual(p.profile_code,'')
+        self.assertEqual(str(p.max_humidity),'75.00')
+        self.assertEqual(p.max_storage_days,37)
+        self.assertEqual(p.check_interval_hours,4)
+        self.assertEqual(CameraEnvironmentProfileChange.objects.filter(camera=self.c).count(),2)
+        self.assertEqual(CameraEnvironmentProfileChange.objects.filter(
+            camera=self.c).first().previous_profile,'onion_dry')
+
+    def test_camera_with_other_open_product_blocks_automatic_switch(self):
+        import uuid
+        from warehouse.models import Customer,Lot
+        from warehouse.models import CameraEnvironmentProfileChange
+        customer=Customer.objects.create(organization=self.o,name='Sinov mijoz')
+        today=timezone.localdate()
+        lot=Lot.objects.create(
+            create_key=uuid.uuid4(), organization=self.o,camera=self.c,customer=customer,
+            product='Sabzi',box_type='yashik',received_on=today,last_stock_date=today,
+            initial_boxes=5,initial_gross=D('100'),initial_tare=D('5'),
+            boxes=5,gross=D('100'),tare=D('5'),tariff_name='sinov',
+            service='storage',basis='net',rate=D('0'),storage_mode='prorata',
+            created_by=self.admin)
+        self.client.force_login(self.admin)
+        wrong=self.client.post(self.url,{
+            'action':'preset','preset-profile_code':'onion_dry'})
+        self.assertEqual(wrong.status_code,200)
+        self.assertContains(wrong,'boshqa yoki aniqlanmagan mahsulot')
+        self.assertFalse(CameraEnvironmentPolicy.objects.filter(camera=self.c).exists())
+        okay=self.client.post(self.url,{
+            'action':'preset','preset-profile_code':'carrot'})
+        self.assertEqual(okay.status_code,302,okay.content[:300])
+        self.assertEqual(CameraEnvironmentPolicy.objects.get(
+            camera=self.c).profile_code,'carrot')
+        lot.closed_on=today
+        lot.save()
+        self.assertEqual(self.client.post(self.url,{
+            'action':'preset','preset-profile_code':'onion_dry'}).status_code,302)
+        self.assertEqual(CameraEnvironmentPolicy.objects.get(
+            camera=self.c).profile_code,'onion_dry')
+        self.assertEqual(CameraEnvironmentProfileChange.objects.filter(
+            camera=self.c).count(),2)
+
+    def test_operator_cannot_select_or_change_product_preset(self):
+        self.client.force_login(self.keeper)
+        response=self.client.post(self.url,{
+            'action':'preset','preset-profile_code':'onion_dry'})
+        self.assertEqual(response.status_code,403)
+        self.assertFalse(CameraEnvironmentPolicy.objects.exists())
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.post(self.url,{
+            'action':'preset','preset-profile_code':'carrot'}).status_code,404)
 
     def test_login_and_cross_tenant_isolation(self):
         self.assertEqual(self.client.get(self.url).status_code,302)
