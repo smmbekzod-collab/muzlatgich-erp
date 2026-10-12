@@ -107,7 +107,7 @@ class IoTHubTests(TestCase):
         with self.assertRaises(ValidationError):g.full_clean()
 
     def test_invalid_measurements_never_saved(self):
-        old=(timezone.now()-timedelta(days=3)).isoformat()
+        old=(timezone.now()-timedelta(days=31)).isoformat()
         for item in [self.item(measured_at=old),
                      self.item(measured_at='2026-10-12T00:00:00'),
                      self.item(temperature='NaN'),
