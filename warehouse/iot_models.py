@@ -19,6 +19,7 @@ class IoTGateway(models.Model):
         ('wifi', 'Wi-Fi / HTTPS'),
         ('mqtt', 'MQTT orqali mahalliy adapter'),
         ('lorawan', 'LoRaWAN orqali adapter'),
+        ('mixed', 'Bir nechta transportli gateway'),
         ('other', 'Boshqa adapter'),
     ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -59,6 +60,14 @@ class IoTGateway(models.Model):
 
 
 class IoTDevice(models.Model):
+    TRANSPORTS = [
+        ('modbus_rtu','RS485 / Modbus RTU'),
+        ('http_json','Wi-Fi / HTTP JSON'),
+        ('mqtt','MQTT broker'),
+        ('lorawan','LoRaWAN (adapter kerak)'),
+        ('other','Boshqa (adapter kerak)'),
+    ]
+    transport = models.CharField(max_length=16, choices=TRANSPORTS, default='modbus_rtu')
     gateway = models.ForeignKey(IoTGateway, on_delete=models.PROTECT, related_name='devices')
     camera = models.ForeignKey(Camera, on_delete=models.PROTECT, related_name='iot_devices')
     code = models.SlugField(max_length=64)
@@ -85,11 +94,13 @@ class IoTDevice(models.Model):
                 raise ValidationError({'camera':'Datchik va gateway bir tashkilot hamda hududga tegishli bo‘lishi shart.'})
         if self.address is not None and not 1 <= self.address <= 247:
             raise ValidationError({'address':'Modbus manzil 1–247 bo‘lishi kerak.'})
-        if self.gateway_id and self.gateway.transport == 'rs485' and self.address is None:
+        if self.transport == 'modbus_rtu' and self.address is None:
             raise ValidationError({'address':'RS485 uchun har bir qurilmaga alohida Modbus manzil belgilang.'})
+        if self.transport != 'modbus_rtu' and self.address is not None:
+            raise ValidationError({'address':'Modbus manzili faqat RS485 datchik uchun beriladi.'})
         if self.pk and IoTDevice.objects.filter(pk=self.pk).exists():
             prev = IoTDevice.objects.get(pk=self.pk)
-            if (prev.gateway_id,prev.camera_id) != (self.gateway_id,self.camera_id):
+            if (prev.gateway_id,prev.camera_id,prev.transport) != (self.gateway_id,self.camera_id,self.transport):
                 raise ValidationError('Ulangan datchikni boshqa gateway/kameraga ko‘chirmang; yangisini yarating.')
 
     def online(self):
