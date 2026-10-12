@@ -387,3 +387,29 @@ class PlatformNotificationControl(models.Model):
             models.CheckConstraint(condition=Q(id=1),name='platform_notification_singleton')
         ]
     def __str__(self):return 'Telegram yuborish umumiy nazorati'
+
+
+class TelegramAnnouncement(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    body = models.TextField('Yangilik matni', max_length=3000)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+class TelegramAnnouncementDelivery(models.Model):
+    announcement = models.ForeignKey(TelegramAnnouncement, on_delete=models.PROTECT, related_name='deliveries')
+    destination = models.ForeignKey(TelegramAlertDestination, on_delete=models.PROTECT)
+    organization_name = models.CharField(max_length=255)
+    chat_id = models.CharField(max_length=32)
+    status = models.CharField(max_length=12, default='pending', choices=[
+        ('pending', 'Yuborish kutilmoqda'), ('sending', 'Yuborish boshlangan — natijani tekshiring'),
+        ('sent', 'Yuborildi'), ('failed', 'Tasdiqlanmadi'), ('cancelled', 'Bekor qilindi')])
+    last_error = models.CharField(max_length=200, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['pk']
+        constraints = [models.UniqueConstraint(fields=['announcement', 'destination'], name='unique_announcement_destination')]

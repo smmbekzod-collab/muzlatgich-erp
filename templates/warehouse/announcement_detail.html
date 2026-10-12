@@ -1,0 +1,17 @@
+{% extends 'warehouse/base.html' %}{% load static %}
+{% block title %}Xabar natijasi · Muzlatgich ERP{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'warehouse/announcements.css' %}">
+<section class="overview-head"><div><div class="eyebrow">SUPER ADMIN / YUBORISH NATIJASI</div><h1>Tizim yangiligi</h1><p class="muted">{{ item.created_at|date:'d.m.Y H:i' }} · {{ item.created_by.username }}</p></div><a class="button secondary" href="{% url 'telegram_announcements' %}">Yangi xabar va tarix →</a></section>
+<section class="card announce-card"><div class="announce-message">{{ body }}</div></section>
+<section class="card announce-card"><h2>Guruhlar bo‘yicha natija</h2>
+{% if has_pending %}
+<p class="muted">Yuborish tugaguncha sahifani ochiq qoldiring. Sahifa yopilsa, qolgan guruhlarga yuborishni shu yerdan davom ettirishingiz mumkin.</p>
+<form method="post" action="{% url 'telegram_announcement_send' item.pk %}" id="announcement-send" data-autostart="{% if autostart %}1{% else %}0{% endif %}">{% csrf_token %}<button type="submit">Qolgan guruhlarga yuborish</button></form>
+<p id="send-progress" role="status" aria-live="polite"></p>
+<noscript><p>Har bosishda navbatdagi bitta guruhga yuboriladi.</p></noscript>
+{% endif %}
+<div class="announce-results">{% for delivery in deliveries %}<article><div><strong>{{ delivery.organization_name }}</strong><small>{{ delivery.chat_id }}{% if delivery.sent_at %} · {{ delivery.sent_at|date:'d.m.Y H:i' }}{% endif %}</small></div><span class="announce-status status-{{ delivery.status }}">{{ delivery.get_status_display }}</span>{% if delivery.last_error %}<p>{{ delivery.last_error }}</p>{% endif %}</article>{% endfor %}</div>
+<p class="help">Yuborilgan xabarlar takror yuborilmaydi. Natijasi tasdiqlanmagan xabar bo‘lsa, yangi xabar tayyorlashdan oldin Telegram guruhini tekshiring.</p></section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'warehouse/announcements.js' %}" defer></script>{% endblock %}

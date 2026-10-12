@@ -1,0 +1,8 @@
+{% extends 'warehouse/base.html' %}{% load static %}
+{% block title %}Xabarni ko‘rib chiqish · Muzlatgich ERP{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'warehouse/announcements.css' %}">
+<section class="overview-head"><div><div class="eyebrow">YUBORISHDAN OLDIN</div><h1>Xabarni ko‘rib chiqing</h1><p class="muted">Quyidagi matn tanlangan {{ routes|length }} ta guruhga yuboriladi.</p></div></section>
+<section class="card announce-card"><h2>Telegramdagi ko‘rinishi</h2><div class="announce-message">{{ body }}</div><h3>Qabul qiluvchilar</h3><ul>{% for route in routes %}<li>{{ route.organization.name }} · {{ route.chat_id }}</li>{% endfor %}</ul>
+<form method="post" class="announce-actions">{% csrf_token %}<input type="hidden" name="action" value="confirm"><input type="hidden" name="preview" value="{{ preview }}"><button type="submit">Tasdiqlash va yuborish</button><button type="button" class="secondary" onclick="history.back()">Tahrirlash</button><a href="{% url 'telegram_announcements' %}">Bekor qilish</a></form>
+</section>{% endblock %}

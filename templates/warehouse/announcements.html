@@ -1,0 +1,21 @@
+{% extends 'warehouse/base.html' %}{% load static %}
+{% block title %}Tizim yangiliklari · Muzlatgich ERP{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'warehouse/announcements.css' %}">
+<section class="overview-head"><div><div class="eyebrow">SUPER ADMIN / TELEGRAM</div><h1>Tizim yangiliklari</h1><p class="muted">Yangi imkoniyatlar va e’lonlarni tashkilotlarning Telegram guruhlariga yuboring.</p></div><a class="button secondary" href="{% url 'telegram_destinations' %}">Guruh sozlamalari →</a></section>
+{% if not bot_ready %}<p class="notice" role="alert">Xabar yuborish uchun ERP xizmatida bot tokeni sozlangan bo‘lishi kerak.</p>{% endif %}
+<section class="card announce-card"><h2>Yangi xabar</h2>
+<form method="post" class="setup-form">{% csrf_token %}{{ form.non_field_errors }}
+<div class="field"><label for="{{ form.body.id_for_label }}">{{ form.body.label }}</label>{{ form.body }}{{ form.body.errors }}<span class="help">Ko‘pi bilan 3000 belgi. Matn Telegram’da oddiy matn sifatida yuboriladi.</span></div>
+<fieldset class="announce-recipients"><legend>{{ form.destinations.label }}</legend>
+<button type="button" class="secondary" id="select-groups">Barchasini tanlash</button>
+{{ form.destinations }}{{ form.destinations.errors }}
+{% if not form.destinations.field.queryset.exists %}<p class="muted">Faol guruh yo‘q. Avval Telegram sozlamalaridan guruh ulang.</p>{% endif %}
+</fieldset><p class="help">Bu e’lonlar rejali hisobotlar va kamera ogohlantirishlaridan alohida yuboriladi.</p>
+<button type="submit" {% if not bot_ready %}disabled{% endif %}>Xabarni ko‘rib chiqish →</button>
+</form></section>
+<section class="announce-history"><h2>Xabarlar tarixi</h2>
+{% for item in history %}<article class="card announce-card"><a href="{% url 'telegram_announcement' item.pk %}"><strong>{{ item.body|truncatechars:100 }}</strong></a><p class="muted">{{ item.created_at|date:'d.m.Y H:i' }} · {{ item.created_by.username }} · {{ item.deliveries.all|length }} ta guruh</p><div class="announce-badges">{% for delivery in item.deliveries.all %}<span class="announce-status status-{{ delivery.status }}">{{ delivery.organization_name }}: {{ delivery.get_status_display }}</span>{% endfor %}</div></article>
+{% empty %}<p class="muted">Hali yangilik yuborilmagan.</p>{% endfor %}</section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'warehouse/announcements.js' %}" defer></script>{% endblock %}
