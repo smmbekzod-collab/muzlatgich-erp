@@ -58,3 +58,13 @@ jobs:
           python manage.py migrate --noinput
           python manage.py check
           python manage.py test warehouse.test_iot_hub warehouse.test_environment warehouse.test_telegram_alerts --verbosity 2
+
+  edge-offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Offline adapters: Wi-Fi HTTP, MQTT mapping, Modbus and queue
+        run: python -m unittest scripts.test_iot_edge -v
