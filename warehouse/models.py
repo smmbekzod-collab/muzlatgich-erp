@@ -265,7 +265,7 @@ class CameraEnvironmentReading(models.Model):
     humidity = models.DecimalField('Namlik %', max_digits=5, decimal_places=2)
     note = models.CharField('Izoh', max_length=250, blank=True)
     source = models.CharField('Manba', max_length=12, default='manual', choices=[('manual', 'Qo‘lda'), ('sensor', 'Datchik')])
-    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -413,3 +413,7 @@ class TelegramAnnouncementDelivery(models.Model):
     class Meta:
         ordering = ['pk']
         constraints = [models.UniqueConstraint(fields=['announcement', 'destination'], name='unique_announcement_destination')]
+
+
+# Django model autodiscovery: Universal IoT Hub models are separate for safety.
+from .iot_models import IoTGateway, IoTDevice, IoTReceipt
