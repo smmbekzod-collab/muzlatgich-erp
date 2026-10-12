@@ -1,6 +1,7 @@
 """Tenant-scoped device enrollment. Never expose gateway secrets after creation."""
 import secrets
 from django import forms
+from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
@@ -58,6 +59,41 @@ class DeviceForm(forms.ModelForm):
         return clean
 
 
+class BulkModbusForm(forms.Form):
+    gateway=forms.ModelChoiceField(queryset=IoTGateway.objects.none(),label='Gateway')
+    cameras=forms.ModelMultipleChoiceField(queryset=IoTDevice.objects.none(),
+        label='Biriktiriladigan kameralar',widget=forms.CheckboxSelectMultiple)
+    address_start=forms.IntegerField(min_value=1,max_value=247,initial=1,
+        label='Boshlang‘ich Modbus manzil (1–247)')
+
+    def __init__(self,*args,gateways=None,cameras=None,**kwargs):
+        super().__init__(*args,**kwargs)
+        self.fields['gateway'].queryset=gateways.filter(transport__in=['rs485','mixed'])
+        self.fields['cameras'].queryset=cameras.order_by('number','pk')
+
+    def clean(self):
+        values=super().clean()
+        gw=values.get('gateway')
+        chosen=values.get('cameras')
+        start=values.get('address_start')
+        if not gw or chosen is None or start is None:
+            return values
+        cams=list(chosen.order_by('number','pk'))
+        if len(cams)>25 or len(cams)<1:
+            self.add_error('cameras','1–25 ta kamera tanlang.')
+        if start+len(cams)-1>247:
+            self.add_error('address_start','Modbus manzil 247 dan oshmasin.')
+        if any(c.organization_id!=gw.organization_id or c.facility_id!=gw.facility_id for c in cams):
+            self.add_error('cameras','Gateway va kameralar bitta tashkilot/hududda bo‘lishi kerak.')
+        elif IoTDevice.objects.filter(gateway=gw,transport='modbus_rtu',
+                                      camera__in=cams).exists():
+            self.add_error('cameras','Tanlangan kameraning shu gatewayda RS485 datchigi avvaldan bor.')
+        elif IoTDevice.objects.filter(gateway=gw,address__gte=start,
+                    address__lte=start+len(cams)-1).exists():
+            self.add_error('address_start','Gatewayda Modbus slave manzillari band.')
+        return values
+
+
 @never_cache
 @login_required
 @require_http_methods(['GET','POST'])
@@ -78,6 +114,8 @@ def iot_hub(request):
         'gateway','camera','camera__organization','camera__facility').order_by(
         'camera__organization__name','camera__number','code')
     token=None
+    bulk_form=BulkModbusForm(request.POST if request.POST.get('action')=='bulk_modbus' else None,
+        gateways=managed_gateways,cameras=managed_cameras,prefix='bulk')
     action=request.POST.get('action') if request.method=='POST' else None
     gw_form=GatewayForm(request.POST if action=='create_gateway' else None,
         orgs=orgs,facilities=managed_facilities,prefix='gateway')
@@ -103,6 +141,26 @@ def iot_hub(request):
                 device.save()
             messages.success(request,'Datchik kameraga biriktirildi.')
             return redirect('iot_hub')
+        elif action=='bulk_modbus' and bulk_form.is_valid():
+            gw=bulk_form.cleaned_data['gateway']
+            selected=list(bulk_form.cleaned_data['cameras'].order_by('number','pk'))
+            start=bulk_form.cleaned_data['address_start']
+            # Re-check reservations under a transaction so concurrent admins
+            # cannot create two slave devices for the same local bus.
+            with transaction.atomic():
+                IoTGateway.objects.select_for_update().get(pk=gw.pk)
+                occupied=IoTDevice.objects.filter(gateway=gw)
+                if occupied.filter(Q(address__gte=start,address__lte=start+len(selected)-1) |
+                                   Q(camera__in=selected,transport='modbus_rtu')).exists():
+                    raise ValidationError('Bu kamera yoki RS485 manzil boshqa foydalanuvchi tomonidan band qilingan.')
+                for i,cam in enumerate(selected):
+                    device=IoTDevice(gateway=gw,camera=cam,transport='modbus_rtu',
+                        code=f'cam{cam.number:03d}',name=f'{cam.number}-kamera datchigi',
+                        address=start+i)
+                    device.full_clean()
+                    device.save()
+            messages.success(request,f'{len(selected)} ta kamera uchun RS485 datchik sozlandi.')
+            return redirect('iot_hub')
         elif action in ('rotate','disable','enable'):
             gw=managed_gateways.filter(pk=request.POST.get('gateway_id')).first()
             if gw is None:
@@ -122,6 +180,7 @@ def iot_hub(request):
     response=render(request,'warehouse/iot_hub.html',{
         'today':timezone.localdate(),'gateways':gateways,
         'devices':devices,'gateway_form':gw_form,'device_form':device_form,
+        'bulk_form':bulk_form,
         'new_token':token,'can_manage':orgs.exists(),
         'gateway_count':gateways.count(),'device_count':devices.count(),
     })
