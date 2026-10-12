@@ -69,3 +69,9 @@ Modbus: `temperature_register`, `humidity_register` **0-based**, `*_signed` va `
 7. Keyin **haqiqiy vendor model tanlangach** real apparat sinovi. Ko‘rsatilgan HTTP URL/Modbus registrlar FAKE namuna.
 
 Production releasega hech narsa qo‘shilmaydi.
+
+## 8. ERPdan gateway JSON shablonini yuklab olish
+
+Tashkilot administratori IoT Hubda gateway qatoridan 'Konfiguratsiyani yuklab olish' tugmasini bosadi. Endpoint: /app/iot/gateway/<UUID>/edge-config.json. Faqat o‘z tashkilotining vakolatli administratori yuklay oladi. Begona tashkilot gateway eksportiga ruxsat yo‘q.
+
+Eksportda datchik kodi, kamera raqami, ulanish turi va Modbus manzili bor; **Bearer token, MQTT paroli, sensor parollari berilmaydi**. Noma’lum registrlar null, URL/topic/path esa bo‘sh. Fayl vendor pasportidagi haqiqiy ma’lumotlar bilan to‘ldirilmaguncha ishlatishga tayyor EMAS. Maxfiy sozlamalar faqat mahalliy muhit o‘zgaruvchilarida bo‘lsin.
