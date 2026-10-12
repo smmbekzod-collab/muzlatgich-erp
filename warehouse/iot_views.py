@@ -6,14 +6,14 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 from core import access
-from core.models import Membership, Facility
+from core.models import Membership, Facility, Camera
 from .iot_models import IoTGateway, IoTDevice
 
 
@@ -61,7 +61,7 @@ class DeviceForm(forms.ModelForm):
 
 class BulkModbusForm(forms.Form):
     gateway=forms.ModelChoiceField(queryset=IoTGateway.objects.none(),label='Gateway')
-    cameras=forms.ModelMultipleChoiceField(queryset=IoTDevice.objects.none(),
+    cameras=forms.ModelMultipleChoiceField(queryset=Camera.objects.none(),
         label='Biriktiriladigan kameralar',widget=forms.CheckboxSelectMultiple)
     address_start=forms.IntegerField(min_value=1,max_value=247,initial=1,
         label='Boshlang‘ich Modbus manzil (1–247)')
@@ -147,20 +147,24 @@ def iot_hub(request):
             start=bulk_form.cleaned_data['address_start']
             # Re-check reservations under a transaction so concurrent admins
             # cannot create two slave devices for the same local bus.
-            with transaction.atomic():
-                IoTGateway.objects.select_for_update().get(pk=gw.pk)
-                occupied=IoTDevice.objects.filter(gateway=gw)
-                if occupied.filter(Q(address__gte=start,address__lte=start+len(selected)-1) |
-                                   Q(camera__in=selected,transport='modbus_rtu')).exists():
-                    raise ValidationError('Bu kamera yoki RS485 manzil boshqa foydalanuvchi tomonidan band qilingan.')
-                for i,cam in enumerate(selected):
-                    device=IoTDevice(gateway=gw,camera=cam,transport='modbus_rtu',
-                        code=f'cam{cam.number:03d}',name=f'{cam.number}-kamera datchigi',
-                        address=start+i)
-                    device.full_clean()
-                    device.save()
-            messages.success(request,f'{len(selected)} ta kamera uchun RS485 datchik sozlandi.')
-            return redirect('iot_hub')
+            try:
+                with transaction.atomic():
+                    IoTGateway.objects.select_for_update().get(pk=gw.pk)
+                    occupied=IoTDevice.objects.filter(gateway=gw)
+                    if occupied.filter(Q(address__gte=start,address__lte=start+len(selected)-1) |
+                                       Q(camera__in=selected,transport='modbus_rtu')).exists():
+                        raise ValidationError('Bu kamera yoki RS485 manzil boshqa foydalanuvchi tomonidan band qilingan.')
+                    for i,cam in enumerate(selected):
+                        device=IoTDevice(gateway=gw,camera=cam,transport='modbus_rtu',
+                            code=f'cam{cam.number:03d}',name=f'{cam.number}-kamera datchigi',
+                            address=start+i)
+                        device.full_clean()
+                        device.save()
+            except (ValidationError, IntegrityError):
+                bulk_form.add_error(None,'Datchik/kamera yoki Modbus manzili band. Sahifani tekshirib, qaytadan urinib ko‘ring.')
+            else:
+                messages.success(request,f'{len(selected)} ta kamera uchun RS485 datchik sozlandi.')
+                return redirect('iot_hub')
         elif action in ('rotate','disable','enable'):
             gw=managed_gateways.filter(pk=request.POST.get('gateway_id')).first()
             if gw is None:
