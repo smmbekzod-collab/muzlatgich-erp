@@ -78,7 +78,7 @@
  <tr><td data-label="Vaqt">{{ item.measured_at|date:'d.m.Y H:i' }}</td>
  <td data-label="Harorat">{{ item.temperature|floatformat:1 }}°C</td>
  <td data-label="Namlik">{{ item.humidity|floatformat:1 }}%</td>
- <td data-label="Mas’ul">{{ item.recorded_by.username }}</td>
+ <td data-label="Mas’ul">{% if item.recorded_by %}{{ item.recorded_by.username }}{% else %}IoT datchik{% endif %}</td>
  <td data-label="Izoh">{{ item.note|default:'—' }}</td></tr>
  {% empty %}<tr><td colspan="5">Hozircha o‘lchov yo‘q.</td></tr>{% endfor %}
  </tbody></table></div>
