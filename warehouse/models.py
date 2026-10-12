@@ -325,6 +325,7 @@ class CameraEnvironmentAlert(models.Model):
         ('temp_low','Past harorat'),('temp_high','Yuqori harorat'),
         ('humidity_low','Past namlik'),('humidity_high','Yuqori namlik'),
         ('stale','O‘lchov eskirgan'),('age','Saqlash nazorat kunidan oshgan'),
+        ('sensor_offline','IoT datchik aloqasi uzilgan'),
     ]
     camera=models.ForeignKey(Camera,on_delete=models.PROTECT,related_name='environment_alerts')
     kind=models.CharField('Hodisa',choices=KINDS,max_length=20)
