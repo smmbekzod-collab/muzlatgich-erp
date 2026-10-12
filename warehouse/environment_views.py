@@ -210,7 +210,7 @@ def monitor_camera(request,camera_id):
                 f"Ma’lumotnoma: {current.name} — {current.temperature}, namlik "
                 f"{current.humidity}. Mahsulotning naviga va ombor sharoitiga "
                 f"ko‘ra chegaralarni admin tasdiqlaydi.")
-    elif crop_status['state'] in ('mixed','unknown'):
+    elif crop_status['state'] in ('mixed','unknown','mismatch'):
         policy_form.fields['min_temperature'].help_text=(
             'DIQQAT: '+crop_status['message'])
     else:
@@ -218,6 +218,14 @@ def monitor_camera(request,camera_id):
             'Ma’lumotnoma: uzum −1…0°C / 90–95% RH; sabzi 0°C / 98–100% RH; '
             'iste’mol kartoshkasi +4…+8°C / 90–96% RH. '
             'Faqat tasdiqlangan mahsulot rejimini qo‘lda kiriting.')
+    if (existing is not None and existing.profile_code and
+            crop_status['state']=='single' and
+            crop_status['kind'] != PRESET_LIMITS[existing.profile_code]['commodity']):
+        crop_status={
+            'state':'mismatch',
+            'message':'Diqqat: kamerada tanlangan saqlash rejimi va amaldagi '
+                      'mahsulot partiyasi mos emas! Rejimni yoki partiyani tekshiring.'
+        }
     oldest=lots[0].received_on if lots else None
     outcome=assess_camera(camera,existing,recent,oldest)
     for lot in lots:
