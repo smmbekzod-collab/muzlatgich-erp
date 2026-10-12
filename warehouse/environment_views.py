@@ -132,6 +132,23 @@ def monitor_camera(request,camera_id):
     crop_status=camera_crop_status(
         product_names if len(product_names)<=128
         else product_names[:128]+['NOMA’LUM MAHSULOT'])
+    # Existing policy form already renders field.help_text, so show crop
+    # references without any automatic writes or template changes.
+    if crop_status['state']=='single':
+        current=next((ref for ref in REFERENCES if ref.code==crop_status['kind']),None)
+        if current:
+            policy_form.fields['min_temperature'].help_text=(
+                f"Ma’lumotnoma: {current.name} — {current.temperature}, namlik "
+                f"{current.humidity}. Mahsulotning naviga va ombor sharoitiga "
+                f"ko‘ra chegaralarni admin tasdiqlaydi.")
+    elif crop_status['state'] in ('mixed','unknown'):
+        policy_form.fields['min_temperature'].help_text=(
+            'DIQQAT: '+crop_status['message'])
+    else:
+        policy_form.fields['min_temperature'].help_text=(
+            'Ma’lumotnoma: uzum −1…0°C / 90–95% RH; sabzi 0°C / 98–100% RH; '
+            'iste’mol kartoshkasi +4…+8°C / 90–96% RH. '
+            'Faqat tasdiqlangan mahsulot rejimini qo‘lda kiriting.')
     oldest=lots[0].received_on if lots else None
     outcome=assess_camera(camera,existing,recent,oldest)
     for lot in lots:
