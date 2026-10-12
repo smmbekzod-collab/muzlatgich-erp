@@ -64,7 +64,7 @@
  <div class="tablebox"><table><thead><tr><th>Tashkilot / kamera</th><th>Datchik</th><th>Manzil</th><th>Holat</th><th>Oxirgi o‘lchov</th></tr></thead><tbody>
  {% for d in devices %}
  <tr><td>{{ d.camera.organization.name }}<div class="muted">{{ d.camera.facility.name }} / №{{ d.camera.number }}</div></td>
- <td>{{ d.name }}<div class="muted">{{ d.code }} · {{ d.model_name|default:'Model ko‘rsatilmagan' }}</div></td>
+ <td>{{ d.name }}<div class="muted">{{ d.code }} · {{ d.get_transport_display }} · {{ d.model_name|default:'Model ko‘rsatilmagan' }}</div></td>
  <td>{{ d.address|default:'—' }}</td>
  <td>{% if not d.is_active %}O‘chirilgan{% elif d.online %}<strong>Online</strong>{% else %}Offline / signal yo‘q{% endif %}</td>
  <td>{{ d.last_seen_at|date:'d.m.Y H:i'|default:'—' }}</td>
