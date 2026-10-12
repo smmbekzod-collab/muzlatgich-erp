@@ -158,8 +158,8 @@ class CameraRentalTests(TestCase):
         self.assertNotEqual(newer.pk,agreement.pk)
 
     def test_rental_page_and_invoice_printable(self):
-        self.agreement()
-        inv=issue_camera_rental_invoice(self.admin,1,uuid.uuid4())
+        agreement=self.agreement()
+        inv=issue_camera_rental_invoice(self.admin,agreement.pk,uuid.uuid4())
         self.client.force_login(self.admin)
         self.assertContains(self.client.get('/app/rentals/'),'Kamera ijarasi')
         self.assertContains(self.client.get(f'/app/rentals/invoice/{inv.pk}/'),'20')
