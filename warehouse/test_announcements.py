@@ -153,7 +153,7 @@ class ConcurrentAnnouncementTests(TransactionTestCase):
     def test_two_requests_claim_one_delivery(self):
         from concurrent.futures import ThreadPoolExecutor
         from threading import Event
-        from django.db import close_old_connections
+        from django.db import close_old_connections, connections
         admin = get_user_model().objects.create_superuser('parallel-announcer', password='test-pass-12345')
         org = Organization.objects.create(name='Parallel test', code='parallel-announcement')
         route = TelegramAlertDestination.objects.create(organization=org, chat_id='-1003333',
@@ -173,7 +173,7 @@ class ConcurrentAnnouncementTests(TransactionTestCase):
             try:
                 return deliver_one(delivery.pk)
             finally:
-                close_old_connections()
+                connections.close_all()
 
         with patch.dict(os.environ, {'TELEGRAM_BOT_TOKEN': '123:mock'}), \
              patch('warehouse.announcements.send_message', side_effect=network) as send, \
