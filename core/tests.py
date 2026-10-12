@@ -73,6 +73,20 @@ class AccessTests(TestCase):
         with self.assertRaises(ValidationError):self.a1.save()
     def test_duplicate_camera_number(self):
         with self.assertRaises(ValidationError):Camera.objects.create(organization=self.b,number=1)
+    def test_duplicate_camera_number_without_facility_returns_form_error(self):
+        self.client.force_login(self.root)
+        before = Camera.objects.filter(organization=self.b).count()
+        response = self.client.post('/admin/core/camera/add/', {
+            'organization': self.b.pk,
+            'number': 1,
+            'name': 'Duplicate',
+            'is_active': 'on',
+            '_save': 'Save',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Bu filialda ushbu raqamli kamera mavjud.')
+        self.assertEqual(Camera.objects.filter(organization=self.b).count(), before)
+
     def test_same_number_other_org_allowed(self):
         self.assertEqual(self.a1.number,self.b1.number)
     def test_grant_cannot_select_other_org_camera(self):
