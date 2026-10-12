@@ -1,0 +1,29 @@
+{
+  "_status": "NAMUNA, REAL USKUNA ULANGAN EMAS; faqat bir dona TH-30-RS test qurilma profili.",
+  "_source": "Dostupnaya Avtomatika TH-30 manufacturer manual https://cdn.vseinstrumenti.ru/instruction/nomenclaturecontent/202401/32826730.pdf/12571313_manual.pdf page 4",
+  "_important": "16-bit INT16 values, humidity register 0, temperature register 1, divided by ten; function 03 holding registers. Do not expose sensor/device credentials.",
+  "serial": {
+    "port": "/dev/ttyUSB0",
+    "baudrate": 9600,
+    "parity": "N",
+    "stopbits": 1,
+    "bytesize": 8,
+    "timeout": 2
+  },
+  "devices": [
+    {
+      "code": "cam001",
+      "transport": "modbus_rtu",
+      "address": 1,
+      "temperature_function": "holding",
+      "temperature_register": 1,
+      "temperature_signed": true,
+      "temperature_scale": "0.1",
+      "humidity_function": "holding",
+      "humidity_register": 0,
+      "humidity_signed": false,
+      "humidity_scale": "0.1",
+      "_comment": "Factory address default 1; each sensor on same RS485 segment must be assigned unique address before parallel commissioning"
+    }
+  ]
+}
