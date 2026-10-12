@@ -33,7 +33,7 @@ class CameraCropPresetForm(forms.Form):
     """One selection applies the associated monitoring limits (not hardware controls)."""
     profile_code = forms.ChoiceField(
         label='Kamerada nima saqlanadi?',
-        choices=PROFILE_CHOICES[1:],
+        choices=[('', '— Mahsulotni tanlang —')] + PROFILE_CHOICES[1:],
         help_text='Rejim tanlang: harorat va namlik chegaralari avtomatik kiritiladi. '
                   'Oldin boshqa mahsulot partiyasi bo‘lsa, o‘zgartirish to‘xtatiladi.'
     )
