@@ -34,11 +34,15 @@ def db():
     return connection
 
 
-def enqueue(filename):
-    with open(filename,'r',encoding='utf-8') as handle:
-        rows=json.load(handle)
-    if not isinstance(rows,list) or not rows:
-        raise ValueError('JSON faylda bir yoki bir nechta o‘lchovdan iborat ro‘yxat bo‘lsin.')
+def enqueue_rows(rows):
+    """Persist before acknowledging a local adapter.
+
+    The local key is (device_code, event_id), matching the cloud idempotency
+    contract; using event_id alone would drop one of 25 cameras if each sensor
+    reported the same per-cycle sequence.
+    """
+    if not isinstance(rows,list) or not 1 <= len(rows) <= 500:
+        raise ValueError('1–500 ta o‘lchov yuboring.')
     made=0
     with db() as con:
         for raw in rows:
@@ -55,10 +59,20 @@ def enqueue(filename):
             if not isinstance(event_id,str) or not 1<=len(event_id)<=80:
                 raise ValueError('event_id noto‘g‘ri.')
             obj['event_id']=event_id
+            local_id=hashlib.sha256(
+                (obj['device_code']+'\\x00'+event_id).encode('utf-8')
+            ).hexdigest()
             cur=con.execute('INSERT OR IGNORE INTO event_queue VALUES (?, ?, ?, NULL)',
-                (event_id,json.dumps(obj,ensure_ascii=False),
+                (local_id,json.dumps(obj,ensure_ascii=False),
                  datetime.now(timezone.utc).isoformat()))
             made+=cur.rowcount
+    return made
+
+
+def enqueue(filename):
+    with open(filename,'r',encoding='utf-8') as handle:
+        rows=json.load(handle)
+    made=enqueue_rows(rows)
     print(f'Navbatga qo‘shildi: {made}; dublikat e’tiborsiz qoldirildi: {len(rows)-made}')
 
 
