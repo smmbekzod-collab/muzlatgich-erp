@@ -74,7 +74,7 @@ class IoTDevice(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['gateway', 'code'], name='iot_device_code_gateway_unique'),
             models.UniqueConstraint(fields=['gateway', 'address'],
-                                    condition=Q(address__isnull=False), name='iot_modbus_address_gateway_unique'),
+                                    condition=Q(address__isnull=False), name='iot_gateway_address_unique'),
         ]
 
     def clean(self):
