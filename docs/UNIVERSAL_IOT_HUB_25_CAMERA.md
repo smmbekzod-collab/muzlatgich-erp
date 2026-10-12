@@ -114,3 +114,5 @@ python scripts/iot_gateway_shipper.py flush
 ```
 
 RS485 / Wi-Fi / MQTT uskunasi bilan alohida mos adapter 5 daqiqada har bir kamera qiymatini o‘qib `adapter-readings.json` faylini yaratishi kerak. Har bir yozuv `device_code, measured_at, temperature, humidity` maydonlariga ega bo‘lsin. Yuboruvchi tasdiqlanmaguncha SQLite navbatni saqlaydi. Bitta `flush` 50 ta o‘lchov yuboradi, davriy ishga tushiring. Hech qachon maxfiy `IOT_BEARER` ni kodga yoki ochiq repo fayliga yozmang.
+
+**Online semantikasi:** gatewayning oxirgi aloqasi serverga muvaffaqiyatli yuborgan vaqt; datchikning oxirgi aloqasi esa haqiqiy o‘lchov vaqtiga asoslanadi. Internet qaytganda eski paketlarning yuborilishi datchikni yolg‘ondan online qilib ko‘rsatmasligi kerak.
