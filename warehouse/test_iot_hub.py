@@ -198,6 +198,23 @@ class IoTHubTests(TestCase):
         with self.assertRaises(ValidationError):
             invalid_wifi.full_clean()
 
+    def test_bulk_pair_25_cameras_as_13_plus_12_on_separate_gateways(self):
+        self.client.force_login(self.admin)
+        from django.contrib.auth.hashers import make_password
+        for label, segment in [('BULK-A',self.cameras[:13]),('BULK-B',self.cameras[13:])]:
+            gateway=IoTGateway.objects.create(organization=self.o,facility=self.f,
+                name=label,created_by=self.admin,transport='rs485',
+                secret_hash=make_password('long-test-secret-bulk-only'))
+            response=self.client.post(reverse('iot_hub'),data={
+                'action':'bulk_modbus','bulk-gateway':str(gateway.pk),
+                'bulk-cameras':[str(camera.pk) for camera in segment],
+                'bulk-address_start':'1'})
+            self.assertEqual(response.status_code,302,response.content[:400])
+            sensors=list(IoTDevice.objects.filter(gateway=gateway).order_by('address'))
+            self.assertEqual(len(sensors),len(segment))
+            self.assertEqual([x.address for x in sensors],list(range(1,len(segment)+1)))
+        self.assertEqual(IoTDevice.objects.filter(gateway__name__startswith='BULK').count(),25)
+
     def test_25_cam_limit_is_per_tenant_not_global(self):
         self.assertEqual(len(self.cameras),25)
         self.assertEqual(self.o.cameras.count(),25)
