@@ -12,6 +12,7 @@ from uuid import UUID
 from django.contrib.auth.hashers import check_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -162,7 +163,9 @@ def iot_readings(request):
                     note=f'IoT datchik: {device.code}'[:250])
                 reading.save()
                 IoTReceipt.objects.create(device=device,event_id=eid,reading=reading)
-                IoTDevice.objects.filter(pk=device.pk).update(last_seen_at=now)
+                IoTDevice.objects.filter(pk=device.pk).filter(
+                    Q(last_seen_at__isnull=True) | Q(last_seen_at__lt=measured)
+                ).update(last_seen_at=measured)
                 changed_cameras.add(device.camera_id)
                 inserted += 1
             IoTGateway.objects.filter(pk=gateway.pk).update(last_seen_at=now)
