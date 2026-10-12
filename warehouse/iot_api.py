@@ -73,8 +73,8 @@ def _measured(raw, now):
     if timezone.is_naive(value):
         raise ValueError('measured_at vaqt zonasi ko‘rsatilishi kerak')
     value = value.astimezone(dt_timezone.utc)
-    if not now - timedelta(hours=48) <= value <= now + timedelta(minutes=5):
-        raise ValueError('O‘lchov vaqti 48 soatdan eski yoki kelajakda')
+    if not now - timedelta(days=30) <= value <= now + timedelta(minutes=5):
+        raise ValueError('O‘lchov vaqti 30 kundan eski yoki kelajakda')
     return value
 
 
