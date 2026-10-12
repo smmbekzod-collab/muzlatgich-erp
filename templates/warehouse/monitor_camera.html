@@ -24,6 +24,23 @@
 <section class="env-alert-panel" role="status"><h2>Diqqat talab etiladi</h2>
  {% for issue in summary.issues %}<p><span aria-hidden="true">!</span> {{ issue }}</p>{% endfor %}
 </section>{% endif %}
+<section class="card">
+  <h2>Saqlanadigan mahsulotni tanlash</h2>
+  <p class="muted">Mahsulotni bir marta tanlang. Harorat va namlik monitoring me’yorlari avtomatik o‘rnatiladi. Bu sovutgich uskunasining ish rejimini o‘zgartirmaydi.</p>
+  <p><strong>Joriy rejim:</strong> {% if policy and policy.profile_code %}{{ policy.get_profile_code_display }}{% else %}Qo‘lda sozlash / tanlanmagan{% endif %}</p>
+  {% if can_configure %}
+  <form method="post" class="env-form">
+    {% csrf_token %}<input type="hidden" name="action" value="preset">
+    {{ preset_form.non_field_errors }}
+    <div class="field">
+      <label for="{{ preset_form.profile_code.id_for_label }}">{{ preset_form.profile_code.label }}</label>
+      {{ preset_form.profile_code }} {{ preset_form.profile_code.errors }}
+      <span class="help">{{ preset_form.profile_code.help_text }}</span>
+    </div>
+    <button type="submit">Mahsulot rejimini avtomatik qo‘llash</button>
+  </form>
+  {% endif %}
+</section>
 <div class="env-detail-forms">
   <section class="card env-entry-card">
     <h2>Yangi o‘lchov</h2><p class="muted">Omborchi harorat va namlikni o‘lchab jurnalga kiritadi.</p>
