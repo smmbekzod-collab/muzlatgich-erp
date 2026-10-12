@@ -74,8 +74,8 @@ def classify_product(raw):
     """Conservative word-boundary classification of an untrusted lot label."""
     if not isinstance(raw,str):
         return None
-    cleaned=raw.casefold().replace('’',"'").replace('ʻ',"'")
-    if any(term in cleaned for term in ("ko'k piyoz",'kok piyoz','green onion', 'spring onion', 'зелёный лук', 'зеленый лук')):
+    cleaned=raw.casefold().replace('’',"'").replace('ʻ',"'").replace('‘',"'").replace('ʼ',"'").replace('`',"'")
+    if any(term in cleaned for term in ("ko'k piyoz",'kok piyoz','yashil piyoz','barra piyoz','green onion', 'spring onion', 'зелёный лук', 'зеленый лук')):
         return None
     tokens=set(re.findall(r'[\w]+',cleaned,flags=re.UNICODE))
     found={kind for kind,aliases in ALIASES.items() if any(alias in tokens for alias in aliases)}
